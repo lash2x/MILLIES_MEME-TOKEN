@@ -243,7 +243,7 @@ Issues & Bugs: File a GitHub issue.
 
 Pull Requests: Fork the repo, branch, implement, and open a PR against main.
 
-Community & Help: Join our Discord or Telegram (links in repo description).
+Community & Help: Join our Telegram: https://t.me/+5WaxFKW5qjs5OTQx
 
 Code Style: Follow the Solidity Style Guide and run:
 
