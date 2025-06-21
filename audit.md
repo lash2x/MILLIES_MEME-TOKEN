@@ -145,7 +145,7 @@ The contract distinguishes between regular transfers and DEX trades:
 
 ### **🟡 MEDIUM RISK Factors**
 - **Complex Tax Logic:** More failure points than simple tokens
-- **Owner Powers:** Can pause, blacklist, change settings
+- **Owner Powers:** While the intentions appear ethical and beneficial to the project, it's important to note that there remains a significant centralization risk, as the owner retains substantial control (including the ability to pause the contract, blacklist addresses, and modify key settings. More on this later)
 - **Helper Dependency:** Relies on separate contract for core functions
 - **Gas Costs:** More expensive transactions due to complexity
 
@@ -168,7 +168,7 @@ The contract distinguishes between regular transfers and DEX trades:
 ### **❌ POOR FIT:**
 - **Day traders looking to trade large positions** facing constant tax drag
 - **Large holders** planning spontanious large sells
-- **Bot operators** targeting the system
+- **Bot operators** as the system by design put up resistance against bot activities, specifically those of malicious intent
 - **Risk-averse investors** wanting simple mechanics
 
 ---
@@ -257,16 +257,15 @@ The contract distinguishes between regular transfers and DEX trades:
 ## 💡 **Advanced Features Explained**
 
 ### **MilliesLens Contract**
-A separate analytics contract providing:
+A separate,read-only, analytics contract providing:
 - Real-time holder statistics
 - Tax collection tracking
 - Burn progress monitoring
 - Health check functions
 - Account-specific data
-- Anyone Can Call the Lens Functions
-- The MilliesLens contract has NO access control - it's completely public. Anyone can call any function and extract detailed data about the token ecosystem.
+- Anyone Can Call the Lens Functions. In other words, the MilliesLens contract has NO access control - it's completely public. Anyone can call any function and extract detailed data about the token ecosystem.
 
-### **📊 What Data be extracted**
+### **📊 What data can be extracted**
 system status:
 - await lens.dashboard();
 - await lens.healthCheck();
@@ -340,8 +339,7 @@ Medium Risk Factors:
 - Event Log Spam: The one non-view function could be abused
 
 Mitigating Factors:
-- Standard Practice: Most DeFi projects have similar transparency
-- On-Chain Anyway: Most data is readable from blockchain directly
+- Transparency is Standard Practice: Most DeFi projects have similar transparency and most data is readable from the blockchain directly Anyways
 - No State Changes: Lens can't modify your token's behavior
 - Community Benefit: Transparency builds trust
 
@@ -438,4 +436,4 @@ Tax drag and cooldowns make active trading unprofitable.
 
 ---
 
-*Last Updated: [06-11-2025] | Contract Version: 2.0 *Production Ready*
+*Initial publisment: [06-11-2025] |Last Updated: [06-21-2025] | Contract Version: 2.0 *Production Ready*
