@@ -1,13 +1,13 @@
-//fileName: LiquidityLib.sol - SECURITY FIXED VERSION
+//fileName: LiquidityLib.sol - MAINNET READY VERSION
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19; // FIXED: L1 - Use fixed pragma instead of floating
+pragma solidity ^0.8.19;
 
 import "./Interfaces.sol";
 
 /**
  * @title LiquidityLib
  * @dev Production-ready library for liquidity pool operations and TWAP calculations
- * @notice Enhanced with gas optimizations and overflow protection for mainnet deployment - SECURITY FIXED VERSION
+ * @notice Enhanced with gas optimizations and overflow protection for mainnet deployment
  */
 library LiquidityLib {
     uint256 private constant TWAP_PERIOD = 1800; // 30 minutes
@@ -240,4 +240,46 @@ library LiquidityLib {
 
         emit LiquidityPoolUpdated(0, currentBalance, block.timestamp);
     }
+
+    // =============================================================================
+    // DEV / TESTNET ONLY FUNCTIONS (COMMENTED FOR PRODUCTION)
+    // =============================================================================
+
+    /*
+    // 🧪 DEV ONLY: Manual TWAP manipulation for testing
+    function setTWAPForTesting(
+        LiquidityData storage data,
+        uint256 twapValue
+    ) external {
+        data.liquidityPoolBalanceTWAP = twapValue;
+        data.lastTWAPUpdate = block.timestamp;
+    }
+
+    // 🧪 DEV ONLY: Get detailed TWAP calculation breakdown
+    function getTWAPCalculationDetails(
+        LiquidityData storage data
+    ) external view returns (
+        uint256 currentBalance,
+        uint256 currentTWAP,
+        uint256 timeDelta,
+        uint256 weight,
+        uint256 projectedTWAP
+    ) {
+        currentBalance = data.liquidityPoolBalance;
+        currentTWAP = data.liquidityPoolBalanceTWAP;
+        timeDelta = block.timestamp > data.lastTWAPUpdate 
+            ? block.timestamp - data.lastTWAPUpdate 
+            : 0;
+        weight = timeDelta > TWAP_PERIOD ? TWAP_PERIOD : timeDelta;
+        
+        if (TWAP_PERIOD > 0 && currentTWAP > 0) {
+            uint256 remainingWeight = TWAP_PERIOD - weight;
+            projectedTWAP = (currentTWAP * remainingWeight + currentBalance * weight) / TWAP_PERIOD;
+        } else {
+            projectedTWAP = currentBalance;
+        }
+        
+        return (currentBalance, currentTWAP, timeDelta, weight, projectedTWAP);
+    }
+    */
 }

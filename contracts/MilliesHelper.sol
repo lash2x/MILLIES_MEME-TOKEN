@@ -47,14 +47,14 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     uint256 private constant SEVEN_DAYS = 7 days;
     
     // Standard tax rates (in basis points)
-    uint256 private constant STANDARD_BURN_TAX = 5;
+    uint256 private constant STANDARD_BURN_TAX = 50;   // 7% of tax = ~0.5% of sell
     uint256 private constant STANDARD_LIQUIDITY_TAX = 500;
     uint256 private constant STANDARD_ADVERTISING_TAX = 150;
-    uint256 private constant STANDARD_COMMUNITY_TAX = 50;
+    uint256 private constant STANDARD_COMMUNITY_TAX = 5;    // Reduced to maintain 705 total
     uint256 private constant TOTAL_STANDARD_TAX = 705;
     
     // Buy tax rates
-    uint256 private constant BUY_TAX_RATE = 300; // 3% default buy tax
+    uint256 private constant BUY_TAX_RATE = 200; // 2% default buy tax
     uint256 private constant EARLY_BUY_TAX_RATE = 500; // 5% for early buyers (first 24h)
 
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
@@ -382,12 +382,12 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Gas optimized tax distribution calculation
+     * @dev Gas optimized tax distribution calculation - FIXED TO MATCH WHITEPAPER
      */
     function calculateTaxDistribution(
         address seller, 
         uint256 amount
-    ) external view returns (uint256 burnAmount, uint256 advertisingAmount, uint256 liquidityAmount, bool isHighImpact) {
+    ) external view returns (uint256 burnAmount, uint256 advertisingAmount, uint256 liquidityAmount, uint256 communityAmount, bool isHighImpact) {
         // Cache frequently accessed values
         bool dumpSpikeEnabled = token.dumpSpikeDetectionEnabled();
         bool sybilEnabled = token.sybilDefenseEnabled();
@@ -434,24 +434,25 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
             taxRate = MAX_TAX;
         }
 
-        // Calculate tax distribution
+        // Calculate tax distribution - FIXED TO MATCH WHITEPAPER
         uint256 taxAmount = (amount * taxRate) / BASIS_POINTS;
         
-        // Optimize distribution calculation
+        // FIXED: Use proper percentage distribution
         burnAmount = (taxAmount * STANDARD_BURN_TAX) / TOTAL_STANDARD_TAX;
         
         if (isHighImpact) {
             // High impact: All non-burn tax goes to LP
             liquidityAmount = taxAmount - burnAmount;
             advertisingAmount = 0;
+            communityAmount = 0;
         } else {
-            // Regular tax: Split remaining between advertising and LP
-            uint256 remaining = taxAmount - burnAmount;
-            advertisingAmount = remaining / 2;
-            liquidityAmount = remaining - advertisingAmount;
+            // FIXED: Use the actual constants for proper distribution
+            advertisingAmount = (taxAmount * STANDARD_ADVERTISING_TAX) / TOTAL_STANDARD_TAX;  // 21%
+            liquidityAmount = (taxAmount * STANDARD_LIQUIDITY_TAX) / TOTAL_STANDARD_TAX;     // 71%  
+            communityAmount = (taxAmount * STANDARD_COMMUNITY_TAX) / TOTAL_STANDARD_TAX;    // 7%
         }
         
-        return (burnAmount, advertisingAmount, liquidityAmount, isHighImpact);
+        return (burnAmount, advertisingAmount, liquidityAmount, communityAmount, isHighImpact);
     }
 
     // =============================================================================

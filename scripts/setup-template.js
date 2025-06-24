@@ -41,6 +41,7 @@ async function main() {
     additionalExclusions: [
       // "0x0000000000000000000000000000000000000000", // Example: Team member wallet
       // "0x0000000000000000000000000000000000000000", // Example: Marketing wallet
+     // "0x0000000000000000000000000000000000000000", // PinkSale pool contract address
     ]
   };
 

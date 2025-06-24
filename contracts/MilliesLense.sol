@@ -1,4 +1,4 @@
-//fileName: MilliesLens.sol - SECURITY FIXED VERSION
+//fileName: MilliesLens.sol - COMPILATION FIXED VERSION
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19; // FIXED: L1 - Use fixed pragma instead of floating
 
@@ -76,7 +76,7 @@ interface IMilliesHelper {
 /**
  * @title MilliesLens
  * @dev Production-ready dashboard and metrics contract for MilliesToken ecosystem
- * @notice Enhanced with comprehensive error handling and gas optimizations for mainnet - SECURITY FIXED VERSION
+ * @notice Enhanced with comprehensive error handling and gas optimizations for mainnet - COMPILATION FIXED VERSION
  */
 contract MilliesLens {
     IMilliesToken public immutable token;
@@ -147,7 +147,7 @@ contract MilliesLens {
         }
         
         // Get liquidity balance with enhanced error handling
-        liquidityBal = _getLiquidityPoolBalance();
+        liquidityBal = _getLiquidityPoolBalanceView();
         
         // ✅ PRODUCTION: Enhanced auto-swap configuration
         lastSwapTimestamp = 0; // Auto-swap not implemented in current version
@@ -186,9 +186,9 @@ contract MilliesLens {
     }
     
     /**
-     * ✅ PRODUCTION: Enhanced liquidity pool balance retrieval with comprehensive error handling
+     * ✅ FIXED: Split into view-only function (no events)
      */
-    function _getLiquidityPoolBalance() private view returns (uint256) {
+    function _getLiquidityPoolBalanceView() private view returns (uint256) {
         address helperAddr = token.helperContract();
         if (helperAddr == address(0)) {
             return 0;
@@ -201,10 +201,35 @@ contract MilliesLens {
             uint256  // lastTWAPBlock
         ) {
             return liquidityPoolBalance;
+        } catch {
+            // FIXED: No event emission in view function
+            return 0;
+        }
+    }
+
+    /**
+     * ✅ FIXED: Separate function for liquidity balance with error logging
+     */
+    function getLiquidityPoolBalanceWithLogging() external returns (uint256) {
+        address helperAddr = token.helperContract();
+        if (helperAddr == address(0)) {
+            emit LensError("getLiquidityPoolBalanceWithLogging", "Helper contract not set", block.timestamp);
+            return 0;
+        }
+
+        try IMilliesHelper(helperAddr).getLiquidityData() returns (
+            uint256 liquidityPoolBalance,
+            uint256, // liquidityPoolBalanceTWAP
+            uint256, // lastTWAPUpdate  
+            uint256  // lastTWAPBlock
+        ) {
+            return liquidityPoolBalance;
         } catch (bytes memory reason) {
-            // ✅ Log error for production monitoring
+            // ✅ Can emit events in non-view function
             if (reason.length > 0) {
-                emit LensError("_getLiquidityPoolBalance", string(reason), block.timestamp);
+                emit LensError("getLiquidityPoolBalanceWithLogging", string(reason), block.timestamp);
+            } else {
+                emit LensError("getLiquidityPoolBalanceWithLogging", "Unknown error", block.timestamp);
             }
             return 0;
         }
@@ -321,7 +346,7 @@ contract MilliesLens {
         uint256 totalSupplyRemaining
     ) {
         contractBalance = _safeGetReservedTokens();
-        liquidityBalance = _getLiquidityPoolBalance();
+        liquidityBalance = _getLiquidityPoolBalanceView();
         burned = _safeGetTotalBurned();
         taxAccumulated = _safeGetTotalTax();
         dailyVol = _safeGetDailyVolume();
@@ -594,7 +619,7 @@ contract MilliesLens {
         }
         
         circulatingSupply = totalSupply > totalBurned ? totalSupply - totalBurned : 0;
-        tokenReserveInLP = _getLiquidityPoolBalance();
+        tokenReserveInLP = _getLiquidityPoolBalanceView();
         
         try token.liquidityPool() returns (address lpAddr) {
             liquidityPoolAddress = lpAddr;

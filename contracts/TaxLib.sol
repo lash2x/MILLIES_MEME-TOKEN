@@ -50,7 +50,7 @@ library TaxLib {
     function calculateLiquidityTax(
         uint256 sellAmount,
         uint256 liquidityBalance
-    ) external pure returns (uint256) {
+    ) public pure returns (uint256) {
         // Early return for edge cases
         if (liquidityBalance == 0 || sellAmount == 0) {
             return 0;
@@ -89,7 +89,7 @@ library TaxLib {
     function calculate3DayTax(
         SellWindow memory window,
         uint256 additionalSell
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         // Early return if window not active or no initial holdings
         if (window.initialHoldings == 0 || window.windowStart == 0) {
             return 0;
@@ -202,7 +202,7 @@ library TaxLib {
         address seller,
         mapping(address => address) storage walletClusters,
         mapping(address => uint256) storage walletCreationTime
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         // Early return if feature disabled
         if (!sybilDefenseEnabled) return 0;
 

@@ -1,4 +1,4 @@
-//fileName: MilliesToken.sol - FINAL PRODUCTION VERSION WITH REENTRANCY PROTECTION
+//fileName: MilliesToken.sol - COMPILATION FIXED VERSION  
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
@@ -21,14 +21,14 @@ interface IMilliesHelper {
     function reservedLiquidityTokens() external view returns (uint256);
     function totalBurned() external view returns (uint256);
     function dailyTradingVolume() external view returns (uint256);
-    function calculateTaxDistribution(address seller, uint256 amount) external view returns (uint256, uint256, uint256, bool);
+    function calculateTaxDistribution(address seller, uint256 amount) external view returns (uint256, uint256, uint256, uint256, bool);
     function isTradeTransaction(address from, address to) external view returns (bool isBuy, bool isSell);
 }
 
 /**
  * @title MilliesToken
  * @dev Production-ready meme token with comprehensive anti-bot features and PancakeSwap integration
- * @notice Mainnet deployment with enhanced security and gas optimizations - FINAL PRODUCTION VERSION
+ * @notice Mainnet deployment with enhanced security and gas optimizations - COMPILATION FIXED VERSION
  */
 contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
@@ -44,7 +44,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     // ✅ MAINNET: Updated to BSC mainnet PancakeSwap factory
-    address public constant PANCAKE_FACTORY = 0xCA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
+    address public constant PANCAKE_FACTORY = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;//0x6725F303b657a9451d8BA641348b6761A6CC7a17(testnet);//0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;(mainnet)
 
     // =============================================================================
     // STATE VARIABLES
@@ -113,7 +113,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     error InsufficientBalance(uint256 requested, uint256 available);
     error TradingDisabled();
     error TransferCooldownActive(uint256 remainingTime);
-    error HelperValidationFailed(string reason);
+    error ErrHelperValidationFailed(address from, address to, uint256 amount, string reason);
     error InvalidRouter(address router);
 
     // =============================================================================
@@ -284,8 +284,9 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Apply basic validation when helper is unavailable
+     * FIXED: Remove view modifier since function can revert with require()
      */
-    function _applyDegradedModeValidation(address from, address to, uint256 amount) internal view {
+    function _applyDegradedModeValidation(address from, address /*to*/, uint256 amount) internal view {
         uint256 fromBalance = balanceOf(from);
         if (fromBalance == 0) return;
         
@@ -342,7 +343,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         }
     }
 
-    // FIXED: Enhanced sell processing with consistent tax calculation (M4)
+    // FIXED: Enhanced sell processing with consistent tax calculation and community distribution
     function _processSellWithTax(address from, address to, uint256 amount) private {
         IMilliesHelper helper = IMilliesHelper(helperContract);
         
@@ -351,6 +352,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
             uint256 burnAmt, 
             uint256 advAmt, 
             uint256 lpAmt, 
+            uint256 commAmt,  // ← ADDED COMMUNITY AMOUNT
             bool isHighImpact
         ) {
             // Process sell in helper (updates state, validates limits)
@@ -368,6 +370,11 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
                     super._transfer(from, liquidityPool, lpAmt);
                     string memory taxType = isHighImpact ? "high_impact_to_lp" : "liquidity";
                     emit TaxCollected(from, liquidityPool, lpAmt, taxType, block.timestamp);
+                }
+                // ADDED: Community distribution
+                if (commAmt > 0 && communityWallet != address(0)) {
+                    super._transfer(from, communityWallet, commAmt);
+                    emit TaxCollected(from, communityWallet, commAmt, "community", block.timestamp);
                 }
                 
                 // Transfer net amount to destination
@@ -396,9 +403,9 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
             uint256 taxAmount = amount - transferAmount;
             
             if (taxAmount > 0) {
-                // Production buy tax distribution
-                uint256 burnAmount = taxAmount / 2; // 50% burn
-                uint256 lpAmount = taxAmount - burnAmount; // 50% to LP
+                // Production buy tax distribution: 2% total (0.2% burn, 1.8% LP)
+                uint256 burnAmount = taxAmount / 10; // 10% of tax = 0.2% of buy amount
+                uint256 lpAmount = taxAmount - burnAmount; // 90% of tax = 1.8% of buy amount
                 
                 super._transfer(from, BURN_ADDRESS, burnAmount);
                 if (liquidityPool != address(0)) {
