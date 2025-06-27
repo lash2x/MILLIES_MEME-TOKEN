@@ -235,7 +235,7 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 - ❌ Not financial advice
 - ❌ No guaranteed returns  
 - ❌ Participate at your own risk
-- ✅ Only invest what you can afford to lose
+- ✅ Only risk what you can afford to lose
 
 ## 📄 License
 
