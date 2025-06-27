@@ -1,6 +1,6 @@
-//fileName: MilliesLens.sol - COMPILATION FIXED VERSION
+//fileName: MilliesLens.sol - DEGRADED MODE REPORTING ADDED
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19; // FIXED: L1 - Use fixed pragma instead of floating
+pragma solidity 0.8.19;
 
 // ✅ PRODUCTION: Enhanced interfaces for mainnet deployment
 interface IMilliesToken {
@@ -17,6 +17,8 @@ interface IMilliesToken {
     function helperContract() external view returns (address);
     function liquidityPool() external view returns (address);
     function buyTaxEnabled() external view returns (bool);
+    function degradedMode() external view returns (bool);
+    function degradedModeActivated() external view returns (uint256);
     
     function getSellWindow(address account) external view returns (
         uint256 totalSold,
@@ -76,7 +78,7 @@ interface IMilliesHelper {
 /**
  * @title MilliesLens
  * @dev Production-ready dashboard and metrics contract for MilliesToken ecosystem
- * @notice Enhanced with comprehensive error handling and gas optimizations for mainnet - COMPILATION FIXED VERSION
+ * @notice Enhanced with comprehensive error handling, gas optimizations, and degraded mode reporting
  */
 contract MilliesLens {
     IMilliesToken public immutable token;
@@ -96,7 +98,7 @@ contract MilliesLens {
     }
     
     /**
-     * @notice Returns comprehensive dashboard data with enhanced error handling
+     * @notice Returns comprehensive dashboard data with enhanced error handling and degraded mode reporting
      * ✅ PRODUCTION: Optimized for mainnet monitoring with fallback values
      */
     function dashboard() external view returns (
@@ -113,8 +115,16 @@ contract MilliesLens {
         uint256 lowVolumeThreshold,
         uint256 currentSwapThreshold,
         uint256 contractBNBBal,
-        uint256 totalHoldersCount
+        uint256 totalHoldersCount,
+        bool degradedModeActive  // ✅ NEW FIELD
     ) {
+        // Check degraded mode status first
+        try token.degradedMode() returns (bool degraded) {
+            degradedModeActive = degraded;
+        } catch {
+            degradedModeActive = false;
+        }
+        
         // ⚡ Gas optimization: Batch token calls with error handling
         try this._safeGetTokenData() returns (
             uint256 _totalSupply,
@@ -144,6 +154,12 @@ contract MilliesLens {
             dailyVol = 0;
             contractTokenBal = 0;
             swapEnabled = false;
+        }
+        
+        // Adjust metrics based on degraded mode
+        if (degradedModeActive) {
+            dailyVol = 0; // No trading volume in degraded mode
+            swapEnabled = false; // No auto-swap in degraded mode
         }
         
         // Get liquidity balance with enhanced error handling
@@ -194,6 +210,13 @@ contract MilliesLens {
             return 0;
         }
 
+        // Check if in degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) return 0; // No liquidity data in degraded mode
+        } catch {
+            // Continue to try getting liquidity data
+        }
+
         try IMilliesHelper(helperAddr).getLiquidityData() returns (
             uint256 liquidityPoolBalance,
             uint256, // liquidityPoolBalanceTWAP
@@ -202,7 +225,6 @@ contract MilliesLens {
         ) {
             return liquidityPoolBalance;
         } catch {
-            // FIXED: No event emission in view function
             return 0;
         }
     }
@@ -215,6 +237,16 @@ contract MilliesLens {
         if (helperAddr == address(0)) {
             emit LensError("getLiquidityPoolBalanceWithLogging", "Helper contract not set", block.timestamp);
             return 0;
+        }
+
+        // Check degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                emit LensError("getLiquidityPoolBalanceWithLogging", "System in degraded mode", block.timestamp);
+                return 0;
+            }
+        } catch {
+            // Continue
         }
 
         try IMilliesHelper(helperAddr).getLiquidityData() returns (
@@ -298,6 +330,16 @@ contract MilliesLens {
         } catch {
             taxTotal = 0;
         }
+        
+        // Adjust for degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                dailyVolume = 0; // No volume in degraded mode
+                reservedTokens = 0; // No reserves in degraded mode
+            }
+        } catch {
+            // Continue
+        }
     }
     
     /**
@@ -325,6 +367,15 @@ contract MilliesLens {
             swapEnabled = enabled;
         } catch {
             swapEnabled = false;
+        }
+
+        // Disable swap in degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                swapEnabled = false;
+            }
+        } catch {
+            // Continue
         }
 
         lastSwap = 0; // Auto-swap functionality not implemented
@@ -356,6 +407,16 @@ contract MilliesLens {
             totalSupplyRemaining = supply > burned ? supply - burned : 0;
         } catch {
             totalSupplyRemaining = 0;
+        }
+        
+        // Adjust for degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                dailyVol = 0; // No volume in degraded mode
+                contractBalance = 0; // No reserves tracked in degraded mode
+            }
+        } catch {
+            // Continue
         }
     }
     
@@ -447,6 +508,16 @@ contract MilliesLens {
             lastBuyTime = 0;
             canBuy = true;
         }
+        
+        // Override trading permissions in degraded mode
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                canSell = false;
+                canBuy = false;
+            }
+        } catch {
+            // Continue
+        }
     }
     
     /**
@@ -460,6 +531,13 @@ contract MilliesLens {
         uint256 timeRemaining
     ) {
         require(account != address(0), "Invalid account address");
+        
+        // Check degraded mode first
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) return (0, 0, 0, 0, 0);
+        } catch {
+            // Continue
+        }
         
         try token.getSellWindow(account) returns (
             uint256 _totalSold,
@@ -506,6 +584,13 @@ contract MilliesLens {
     ) {
         require(account != address(0), "Invalid account address");
         
+        // Check degraded mode first
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) return (0, 0, 0, 0);
+        } catch {
+            // Continue
+        }
+        
         address helperAddr = token.helperContract();
         if (helperAddr == address(0)) {
             return (0, 0, 0, 0);
@@ -534,6 +619,20 @@ contract MilliesLens {
         uint256 lastVolumeReset,
         bool buyTaxEnabled
     ) {
+        // Check degraded mode first
+        try token.degradedMode() returns (bool degraded) {
+            if (degraded) {
+                // Return zero stats in degraded mode
+                try token.buyTaxEnabled() returns (bool enabled) {
+                    return (0, 0, 0, 0, 0, enabled);
+                } catch {
+                    return (0, 0, 0, 0, 0, false);
+                }
+            }
+        } catch {
+            // Continue
+        }
+        
         address helperAddr = token.helperContract();
         
         if (helperAddr != address(0)) {
@@ -641,12 +740,13 @@ contract MilliesLens {
     }
 
     /**
-     * ✅ PRODUCTION: Health check function for monitoring systems
+     * ✅ PRODUCTION: Health check function for monitoring systems with degraded mode reporting
      */
     function healthCheck() external view returns (
         bool tokenResponsive,
         bool helperResponsive,
         bool tradingEnabled,
+        bool degradedModeActive,  // ✅ NEW FIELD
         bool emergencyDetected,
         string memory status
     ) {
@@ -657,29 +757,44 @@ contract MilliesLens {
             tokenResponsive = false;
         }
         
-        // Test helper responsiveness
+        // Check degraded mode status
+        try token.degradedMode() returns (bool degraded) {
+            degradedModeActive = degraded;
+        } catch {
+            degradedModeActive = false;
+        }
+        
+        // Test helper responsiveness (only if not in degraded mode)
         address helperAddr = token.helperContract();
-        if (helperAddr != address(0)) {
+        if (helperAddr != address(0) && !degradedModeActive) {
             try IMilliesHelper(helperAddr).getTradingStats() returns (uint256, uint256, uint256, uint256, uint256) {
                 helperResponsive = true;
             } catch {
                 helperResponsive = false;
             }
+        } else {
+            helperResponsive = degradedModeActive ? true : false; // Don't penalize in degraded mode
         }
         
         // Check trading status
         try token.getTradingStatus() returns (bool enabled, uint256, uint256, uint256) {
-            tradingEnabled = enabled;
+            tradingEnabled = enabled && !degradedModeActive; // Trading disabled in degraded mode
         } catch {
             tradingEnabled = false;
         }
         
-        // Emergency detection (rapid burn rate or unusual activity)
-        uint256 dailyVol = _safeGetDailyVolume();
-        emergencyDetected = dailyVol > EMERGENCY_THRESHOLD;
+        // Emergency detection (only if not in degraded mode)
+        if (!degradedModeActive) {
+            uint256 dailyVol = _safeGetDailyVolume();
+            emergencyDetected = dailyVol > EMERGENCY_THRESHOLD;
+        } else {
+            emergencyDetected = false; // No volume to check in degraded mode
+        }
         
         // Overall status
-        if (!tokenResponsive) {
+        if (degradedModeActive) {
+            status = "DEGRADED_MODE_TRADING_DISABLED";
+        } else if (!tokenResponsive) {
             status = "CRITICAL_TOKEN_UNRESPONSIVE";
         } else if (!helperResponsive) {
             status = "WARNING_HELPER_UNRESPONSIVE";
@@ -690,5 +805,31 @@ contract MilliesLens {
         } else {
             status = "HEALTHY";
         }
+    }
+
+    /**
+     * ✅ NEW: Get degraded mode information
+     */
+    function getDegradedModeInfo() external view returns (
+        bool isActive,
+        uint256 activatedTime,
+        uint256 durationActive,
+        string memory reason
+    ) {
+        try token.degradedMode() returns (bool active) {
+            isActive = active;
+        } catch {
+            isActive = false;
+        }
+        
+        try token.degradedModeActivated() returns (uint256 activated) {
+            activatedTime = activated;
+            durationActive = activated > 0 ? block.timestamp - activated : 0;
+        } catch {
+            activatedTime = 0;
+            durationActive = 0;
+        }
+        
+        reason = isActive ? "Trading disabled for system protection" : "";
     }
 }

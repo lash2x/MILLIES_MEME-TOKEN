@@ -1,4 +1,4 @@
-//fileName: MilliesToken.sol - COMPILATION FIXED VERSION  
+//fileName: MilliesToken.sol - DEGRADED MODE SECURITY FIXED VERSION  
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
@@ -23,12 +23,16 @@ interface IMilliesHelper {
     function dailyTradingVolume() external view returns (uint256);
     function calculateTaxDistribution(address seller, uint256 amount) external view returns (uint256, uint256, uint256, uint256, bool);
     function isTradeTransaction(address from, address to) external view returns (bool isBuy, bool isSell);
+    function getIndividualSellWindow(address account) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function getDistributorData(address account) external view returns (bool, uint256, uint256, uint256, uint256);
+    function getWalletLineage(address account) external view returns (address, uint256, bool, address);
+    function getClusterSellData(address rootDistributor) external view returns (uint256, uint256, uint256, uint256, bool, uint256);
 }
 
 /**
  * @title MilliesToken
  * @dev Production-ready meme token with comprehensive anti-bot features and PancakeSwap integration
- * @notice Mainnet deployment with enhanced security and gas optimizations - COMPILATION FIXED VERSION
+ * @notice Mainnet deployment with enhanced security and degraded mode protection - SECURITY FIXED VERSION
  */
 contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
@@ -44,7 +48,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     // ✅ MAINNET: Updated to BSC mainnet PancakeSwap factory
-    address public constant PANCAKE_FACTORY = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;//0x6725F303b657a9451d8BA641348b6761A6CC7a17(testnet);//0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;(mainnet)
+    address public constant PANCAKE_FACTORY = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
 
     // =============================================================================
     // STATE VARIABLES
@@ -81,7 +85,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     mapping(address => bool) public isHoldingTokens;
     uint256 public totalHolders;
 
-    // FIXED: Add degraded mode tracking for helper failures
+    // ✅ FIXED: Enhanced degraded mode tracking
     bool public degradedMode;
     uint256 public degradedModeActivated;
 
@@ -100,13 +104,14 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     event HelperContractUpdated(address indexed oldHelper, address indexed newHelper, uint256 timestamp);
     event TradeDetected(address indexed from, address indexed to, uint256 amount, bool isBuy, bool isSell, uint256 timestamp);
     
-    // FIXED: Add new events for enhanced monitoring
+    // ✅ FIXED: Enhanced degraded mode events
     event DegradedModeActivated(string reason, uint256 timestamp);
     event DegradedModeDeactivated(uint256 timestamp);
     event HelperValidationFailed(address indexed from, address indexed to, uint256 amount, string reason, uint256 timestamp);
+    event TradingBlockedDueToDegradedMode(address indexed from, address indexed to, uint256 amount, uint256 timestamp);
 
     // =============================================================================
-    // CUSTOM ERRORS - FIXED: Add for gas efficiency
+    // CUSTOM ERRORS - ENHANCED FOR GAS EFFICIENCY
     // =============================================================================
     
     error InvalidAddress(address provided);
@@ -115,6 +120,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     error TransferCooldownActive(uint256 remainingTime);
     error ErrHelperValidationFailed(address from, address to, uint256 amount, string reason);
     error InvalidRouter(address router);
+    error DegradedModeActive(); // ✅ NEW ERROR
 
     // =============================================================================
     // MODIFIERS - ENHANCED SECURITY
@@ -140,13 +146,13 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     // =============================================================================
-    // CONSTRUCTOR - FIXED: Enhanced router validation (M5)
+    // CONSTRUCTOR - ENHANCED ROUTER VALIDATION
     // =============================================================================
 
     constructor(address _router) ERC20("Millies", "MILLIES") {
         if (_router == address(0)) revert InvalidRouter(_router);
         
-        // FIXED: Validate router has required functions and get WBNB
+        // Validate router has required functions and get WBNB
         try IUniswapV2Router02(_router).WETH() returns (address weth) {
             if (weth == address(0)) revert InvalidRouter(_router);
             WBNB = weth;
@@ -177,7 +183,6 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Override transfer with reentrancy protection for production security
-     * @notice Protects against potential reentrancy attacks during tax processing
      */
     function transfer(address to, uint256 amount) 
         public 
@@ -190,7 +195,6 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Override transferFrom with reentrancy protection for production security
-     * @notice Protects against potential reentrancy attacks during tax processing
      */
     function transferFrom(address from, address to, uint256 amount) 
         public 
@@ -211,11 +215,11 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     // =============================================================================
-    // DEGRADED MODE MANAGEMENT - FIXED: Add degraded mode functions
+    // ✅ FIXED: SECURE DEGRADED MODE MANAGEMENT
     // =============================================================================
 
     /**
-     * @dev Manually activate degraded mode in case of helper issues
+     * @dev Manually activate degraded mode - completely blocks all trading
      */
     function activateDegradedMode(string calldata reason) external onlyOwner {
         degradedMode = true;
@@ -225,15 +229,51 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Deactivate degraded mode when helper is fixed
+     * @param newHelper Address of new/fixed helper contract (optional)
      */
-    function deactivateDegradedMode() external onlyOwner {
+    function deactivateDegradedMode(address newHelper) external onlyOwner {
+        if (newHelper != address(0)) {
+            // Validate new helper before deactivating degraded mode
+            require(newHelper != helperContract, "Same helper address");
+            
+            // Test the new helper with a minimal validation call
+            try IMilliesHelper(newHelper).validateTransfer(owner(), owner(), 1) {
+                // Helper validation works, safe to use
+                address oldHelper = helperContract;
+                helperContract = newHelper;
+                isExcludedFromFees[newHelper] = true;
+                isExcludedFromCooldown[newHelper] = true;
+                emit HelperContractUpdated(oldHelper, newHelper, block.timestamp);
+            } catch {
+                revert("New helper validation failed");
+            }
+        }
+        
+        // Deactivate degraded mode
         degradedMode = false;
         degradedModeActivated = 0;
         emit DegradedModeDeactivated(block.timestamp);
     }
 
+    /**
+     * @dev Emergency transfer function - works even in degraded mode
+     * @notice Only owner can use this for emergency recovery
+     */
+    function emergencyTransfer(address to, uint256 amount) external onlyOwner nonReentrant {
+        require(degradedMode, "Only available in degraded mode");
+        require(to != address(0), "Invalid recipient");
+        
+        uint256 ownerBalance = balanceOf(owner());
+        if (ownerBalance < amount) revert InsufficientBalance(amount, ownerBalance);
+        
+        // Bypass normal transfer logic for emergency recovery
+        super._transfer(owner(), to, amount);
+        
+        emit WalletFunded(to, amount, "emergency_transfer", block.timestamp);
+    }
+
     // =============================================================================
-    // CORE TRANSFER LOGIC - FIXED: Enhanced helper failure handling (Gap 1)
+    // ✅ FIXED: CORE TRANSFER LOGIC WITH DEGRADED MODE BLOCKING
     // =============================================================================
 
     function _beforeTokenTransfer(
@@ -251,53 +291,39 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
         if (!tradingEnabled) revert TradingDisabled();
 
-        // FIXED: Enhanced helper validation with degraded mode fallback
-        if (helperContract != address(0) && !degradedMode) {
+        // ✅ FIXED: Block all trading in degraded mode
+        if (degradedMode) {
+            emit TradingBlockedDueToDegradedMode(from, to, amount, block.timestamp);
+            revert DegradedModeActive();
+        }
+
+        // Enhanced helper validation with automatic degraded mode activation
+        if (helperContract != address(0)) {
             try IMilliesHelper(helperContract).validateTransfer(from, to, amount) {
                 // Validation successful
             } catch Error(string memory reason) {
                 emit HelperValidationFailed(from, to, amount, reason, block.timestamp);
                 
-                if (!isExcludedFromFees[from] && !isExcludedFromFees[to]) {
-                    // Activate degraded mode and apply basic validation
-                    degradedMode = true;
-                    degradedModeActivated = block.timestamp;
-                    emit DegradedModeActivated("Helper validation failed", block.timestamp);
-                    
-                    _applyDegradedModeValidation(from, to, amount);
-                }
+                // Activate degraded mode and BLOCK this transaction
+                degradedMode = true;
+                degradedModeActivated = block.timestamp;
+                emit DegradedModeActivated("Helper validation failed", block.timestamp);
+                
+                revert("Trading disabled - system entered degraded mode");
+                
             } catch {
                 emit HelperValidationFailed(from, to, amount, "Unknown error", block.timestamp);
                 
-                if (!isExcludedFromFees[from] && !isExcludedFromFees[to]) {
-                    degradedMode = true;
-                    degradedModeActivated = block.timestamp;
-                    emit DegradedModeActivated("Helper call failed", block.timestamp);
-                    
-                    _applyDegradedModeValidation(from, to, amount);
-                }
+                // Activate degraded mode and BLOCK this transaction
+                degradedMode = true;
+                degradedModeActivated = block.timestamp;
+                emit DegradedModeActivated("Helper call failed", block.timestamp);
+                
+                revert("Trading disabled - system entered degraded mode");
             }
-        } else if (degradedMode && !isExcludedFromFees[from] && !isExcludedFromFees[to]) {
-            _applyDegradedModeValidation(from, to, amount);
         }
     }
 
-    /**
-     * @dev Apply basic validation when helper is unavailable
-     * FIXED: Remove view modifier since function can revert with require()
-     */
-    function _applyDegradedModeValidation(address from, address /*to*/, uint256 amount) internal view {
-        uint256 fromBalance = balanceOf(from);
-        if (fromBalance == 0) return;
-        
-        // Limit transfers to 1% of balance in degraded mode
-        uint256 maxTransfer = fromBalance / 100;
-        if (maxTransfer == 0) maxTransfer = 1; // Allow at least 1 wei
-        
-        require(amount <= maxTransfer, "Degraded mode: Max 1% of balance per transfer");
-    }
-
-    // FIXED: Enhanced transfer logic with proper tax calculation consistency (M4)
     function _transfer(address from, address to, uint256 amount) internal override enhancedBlacklistCheck(from, to) {
         if (from == address(0) || to == address(0)) revert InvalidAddress(from == address(0) ? from : to);
         require(amount > 0, "Amount must be > 0");
@@ -307,7 +333,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         bool toExcluded = isExcludedFromFees[to];
         bool isExcludedFromTransfer = fromExcluded || toExcluded;
         
-        // Enhanced trade detection using helper contract
+        // Enhanced trade detection using helper contract (only if not degraded)
         bool isBuy = false;
         bool isSell = false;
         
@@ -327,7 +353,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
             emit TradeDetected(from, to, amount, isBuy, isSell, block.timestamp);
         }
 
-        // Apply tax logic to trades based on configuration
+        // Apply tax logic to trades (only if not degraded and helper available)
         if (!isExcludedFromTransfer && isTrade && helperContract != address(0) && !degradedMode) {
             if (isSell) {
                 _processSellWithTax(from, to, amount);
@@ -338,21 +364,21 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
                 super._transfer(from, to, amount);
             }
         } else {
-            // Standard transfer (no tax)
+            // Standard transfer (no tax) - includes degraded mode
             super._transfer(from, to, amount);
         }
     }
 
-    // FIXED: Enhanced sell processing with consistent tax calculation and community distribution
+    // Enhanced sell processing with consistent tax calculation and community distribution
     function _processSellWithTax(address from, address to, uint256 amount) private {
         IMilliesHelper helper = IMilliesHelper(helperContract);
         
-        // FIXED: Calculate tax distribution and process sell atomically to prevent inconsistency
+        // Calculate tax distribution and process sell atomically
         try helper.calculateTaxDistribution(from, amount) returns (
             uint256 burnAmt, 
             uint256 advAmt, 
             uint256 lpAmt, 
-            uint256 commAmt,  // ← ADDED COMMUNITY AMOUNT
+            uint256 commAmt,
             bool isHighImpact
         ) {
             // Process sell in helper (updates state, validates limits)
@@ -371,7 +397,6 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
                     string memory taxType = isHighImpact ? "high_impact_to_lp" : "liquidity";
                     emit TaxCollected(from, liquidityPool, lpAmt, taxType, block.timestamp);
                 }
-                // ADDED: Community distribution
                 if (commAmt > 0 && communityWallet != address(0)) {
                     super._transfer(from, communityWallet, commAmt);
                     emit TaxCollected(from, communityWallet, commAmt, "community", block.timestamp);
@@ -431,19 +456,26 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     function setHelperContract(address _helper) external onlyOwner {
         if (_helper == address(0)) revert InvalidAddress(_helper);
-        address oldHelper = helperContract;
-        helperContract = _helper;
-        isExcludedFromFees[_helper] = true;
-        isExcludedFromCooldown[_helper] = true;
         
-        // Reset degraded mode when new helper is set
-        if (degradedMode) {
-            degradedMode = false;
-            degradedModeActivated = 0;
-            emit DegradedModeDeactivated(block.timestamp);
+        // Test new helper before setting it
+        try IMilliesHelper(_helper).validateTransfer(owner(), owner(), 1) {
+            // Helper validation works
+            address oldHelper = helperContract;
+            helperContract = _helper;
+            isExcludedFromFees[_helper] = true;
+            isExcludedFromCooldown[_helper] = true;
+            
+            // Reset degraded mode when new helper is set successfully
+            if (degradedMode) {
+                degradedMode = false;
+                degradedModeActivated = 0;
+                emit DegradedModeDeactivated(block.timestamp);
+            }
+            
+            emit HelperContractUpdated(oldHelper, _helper, block.timestamp);
+        } catch {
+            revert("Helper validation failed");
         }
-        
-        emit HelperContractUpdated(oldHelper, _helper, block.timestamp);
     }
 
     function setAdvertisingWallet(address _wallet) external onlyOwner validAddress(_wallet) {
@@ -615,7 +647,7 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         uint256 sellCount,
         uint256 timeRemaining
     ) {
-        if (helperContract != address(0)) {
+        if (helperContract != address(0) && !degradedMode) {
             return IMilliesHelper(helperContract).getSellWindow(account);
         }
         return (0, 0, 0, 0, 0);
@@ -628,10 +660,11 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         uint256 lastBuy,
         bool canBuy
     ) {
-        if (helperContract != address(0)) {
+        if (helperContract != address(0) && !degradedMode) {
             return IMilliesHelper(helperContract).getCooldownInfo(account);
         }
-        return (0, 0, true, 0, true);
+        // In degraded mode, trading is blocked so return false for can trade
+        return (0, 0, !degradedMode, 0, !degradedMode);
     }
 
     function getTotalBurned() external view returns (uint256) {
@@ -665,20 +698,161 @@ contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         uint256 timeSinceEnabled
     ) {
         uint256 timeSince = (tradingEnabledTime > 0) ? block.timestamp - tradingEnabledTime : 0;
-        return (tradingEnabled, tradingEnabledTime, contractDeployTime, timeSince);
+        bool actuallyEnabled = tradingEnabled && !degradedMode; // Trading disabled in degraded mode
+        return (actuallyEnabled, tradingEnabledTime, contractDeployTime, timeSince);
     }
 
     // Delegate complex metrics to helper contract
     function totalTaxAccumulated() external view returns (uint256) {
-        return helperContract != address(0) ? IMilliesHelper(helperContract).totalTaxAccumulated() : 0;
+        return (helperContract != address(0) && !degradedMode) ? IMilliesHelper(helperContract).totalTaxAccumulated() : 0;
     }
 
     function reservedLiquidityTokens() external view returns (uint256) {
-        return helperContract != address(0) ? IMilliesHelper(helperContract).reservedLiquidityTokens() : 0;
+        return (helperContract != address(0) && !degradedMode) ? IMilliesHelper(helperContract).reservedLiquidityTokens() : 0;
     }
 
     function dailyTradingVolume() external view returns (uint256) {
-        return helperContract != address(0) ? IMilliesHelper(helperContract).dailyTradingVolume() : 0;
+        return (helperContract != address(0) && !degradedMode) ? IMilliesHelper(helperContract).dailyTradingVolume() : 0;
+    }
+
+    // =============================================================================
+    // NEW VIEW FUNCTIONS FOR ENHANCED SYSTEMS
+    // =============================================================================
+
+    /**
+     * @dev Get individual sell window information (new system)
+     */
+    function getIndividualSellWindow(address account) external view returns (
+        uint256 totalSold,
+        uint256 windowStart,
+        uint256 cumulativeLPImpact,
+        uint256 sellCount,
+        uint256 timeRemaining
+    ) {
+        if (helperContract != address(0) && !degradedMode) {
+            return IMilliesHelper(helperContract).getIndividualSellWindow(account);
+        }
+        return (0, 0, 0, 0, 0);
+    }
+
+    /**
+     * @dev Check if address is flagged as distributor
+     */
+    function getDistributorData(address account) external view returns (
+        bool isDistributor,
+        uint256 distributorFlagTime,
+        uint256 transferCount,
+        uint256 totalTransferred,
+        uint256 recipientCount
+    ) {
+        if (helperContract != address(0) && !degradedMode) {
+            return IMilliesHelper(helperContract).getDistributorData(account);
+        }
+        return (false, 0, 0, 0, 0);
+    }
+
+    /**
+     * @dev Get wallet lineage information for cluster tracking
+     */
+    function getWalletLineage(address account) external view returns (
+        address parent,
+        uint256 receivedTime,
+        bool isClusterLinked,
+        address rootDistributor
+    ) {
+        if (helperContract != address(0) && !degradedMode) {
+            return IMilliesHelper(helperContract).getWalletLineage(account);
+        }
+        return (address(0), 0, false, address(0));
+    }
+
+    /**
+     * @dev Get cluster sell tracking data
+     */
+    function getClusterSellData(address rootDistributor) external view returns (
+        uint256 totalClusterSold,
+        uint256 clusterWindowStart,
+        uint256 cumulativeClusterLPImpact,
+        uint256 clusterSellCount,
+        bool isActive,
+        uint256 timeRemaining
+    ) {
+        if (helperContract != address(0) && !degradedMode) {
+            return IMilliesHelper(helperContract).getClusterSellData(rootDistributor);
+        }
+        return (0, 0, 0, 0, false, 0);
+    }
+
+    /**
+     * @dev Comprehensive account analysis
+     */
+    function getAccountAnalysis(address account) external view returns (
+        uint256 balance,
+        bool isDistributor,
+        bool isClusterLinked,
+        address rootDistributor,
+        uint256 individualSellWindowRemaining,
+        uint256 clusterSellWindowRemaining,
+        bool canSell,
+        bool canBuy
+    ) {
+        balance = balanceOf(account);
+        
+        if (helperContract != address(0) && !degradedMode) {
+            // Get distributor status
+            (isDistributor, , , , ) = IMilliesHelper(helperContract).getDistributorData(account);
+            
+            // Get lineage information
+            (, , isClusterLinked, rootDistributor) = IMilliesHelper(helperContract).getWalletLineage(account);
+            
+            // Get sell window remaining times
+            (, , , , individualSellWindowRemaining) = IMilliesHelper(helperContract).getIndividualSellWindow(account);
+            
+            if (rootDistributor != address(0)) {
+                (, , , , , clusterSellWindowRemaining) = IMilliesHelper(helperContract).getClusterSellData(rootDistributor);
+            }
+            
+            // Get trading permissions
+            (, , canSell, , canBuy) = IMilliesHelper(helperContract).getCooldownInfo(account);
+            
+            // Override trading permissions in degraded mode
+            canSell = canSell && !degradedMode;
+            canBuy = canBuy && !degradedMode;
+        } else {
+            isDistributor = false;
+            isClusterLinked = false;
+            rootDistributor = address(0);
+            individualSellWindowRemaining = 0;
+            clusterSellWindowRemaining = 0;
+            canSell = !degradedMode; // No trading in degraded mode
+            canBuy = !degradedMode;  // No trading in degraded mode
+        }
+    }
+
+    /**
+     * @dev Get enhanced tax configuration from TaxLib
+     */
+    function getTaxConfiguration() external pure returns (
+        uint256 mediumThreshold,
+        uint256 largeThreshold, 
+        uint256 extremeThreshold,
+        uint256 mediumTax,
+        uint256 largeTax,
+        uint256 extremeTax,
+        uint256 sellWindowDuration,
+        uint256 clusterWindowDuration
+    ) {
+        // These values match TaxLib constants
+        return (
+            1200,  // 12% - MEDIUM_DUMP_THRESHOLD
+            2000,  // 20% - LARGE_DUMP_THRESHOLD  
+            3000,  // 30% - EXTREME_DUMP_THRESHOLD
+            4500,  // 45% - MEDIUM_DUMP_TAX
+            5200,  // 52% - LARGE_DUMP_TAX
+            7500,  // 75% - EXTREME_DUMP_TAX
+            72 hours,  // SELL_WINDOW_DURATION
+            35 days    // CLUSTER_WINDOW_DURATION
+        );
     }
 
     // =============================================================================

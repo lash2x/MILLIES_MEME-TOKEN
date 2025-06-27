@@ -1,6 +1,6 @@
-//fileName: MilliesHelper.sol - SECURITY FIXED VERSION
+//fileName: MilliesHelper.sol - ENHANCED VERSION WITH NEW SYSTEMS (NO DEGRADED MODE CHANGES NEEDED)
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19; // FIXED: L1 - Use fixed pragma instead of floating
+pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -28,85 +28,98 @@ interface IMilliesToken {
 }
 
 /**
- * @title MilliesHelper
- * @dev Production-ready helper contract with enhanced trade detection and security
- * @notice Mainnet deployment with comprehensive anti-bot features and gas optimizations - SECURITY FIXED VERSION
+ * @title MilliesHelper - Enhanced Version
+ * @dev Comprehensive helper with individual sell tracking and cluster detection
+ * @notice Implements whale dump protection and sophisticated lineage-based clustering
+ * @notice NO DEGRADED MODE CHANGES NEEDED - Main token handles degraded mode logic
  */
 contract MilliesHelper is Ownable, ReentrancyGuard {
-    using TaxLib for TaxLib.SellWindow;
+    using TaxLib for TaxLib.IndividualSellWindow;
+    using TaxLib for TaxLib.DistributorData;
+    using TaxLib for TaxLib.LineageData;
+    using TaxLib for TaxLib.ClusterSellData;
     using LiquidityLib for LiquidityLib.LiquidityData;
 
     // =============================================================================
-    // CONSTANTS - PRODUCTION TUNED
+    // CONSTANTS
     // =============================================================================
 
     uint256 private constant BASIS_POINTS = 10000;
     uint256 private constant MAX_TAX = 7500;
     uint256 private constant BUY_COOLDOWN = 30 seconds;
-    uint256 private constant THREE_DAYS = 3 days;
-    uint256 private constant SEVEN_DAYS = 7 days;
     
-    // Standard tax rates (in basis points)
-    uint256 private constant STANDARD_BURN_TAX = 50;   // 7% of tax = ~0.5% of sell
+    // Standard tax rates (unchanged)
+    uint256 private constant STANDARD_BURN_TAX = 50;   
     uint256 private constant STANDARD_LIQUIDITY_TAX = 500;
     uint256 private constant STANDARD_ADVERTISING_TAX = 150;
-    uint256 private constant STANDARD_COMMUNITY_TAX = 5;    // Reduced to maintain 705 total
+    uint256 private constant STANDARD_COMMUNITY_TAX = 5;    
     uint256 private constant TOTAL_STANDARD_TAX = 705;
     
     // Buy tax rates
-    uint256 private constant BUY_TAX_RATE = 200; // 2% default buy tax
-    uint256 private constant EARLY_BUY_TAX_RATE = 500; // 5% for early buyers (first 24h)
+    uint256 private constant BUY_TAX_RATE = 200; // 2%
+    uint256 private constant EARLY_BUY_TAX_RATE = 500; // 5%
 
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     // =============================================================================
-    // STATE VARIABLES
+    // STATE VARIABLES - ENHANCED WITH NEW SYSTEMS
     // =============================================================================
 
     IMilliesToken public immutable token;
     LiquidityLib.LiquidityData private liquidityData;
 
-    // Trading controls - Gas optimized storage layout
+    // Basic trading controls (unchanged)
     mapping(address => uint256) public lastBuyTime;
     mapping(address => uint256) public lastBuyBlock;
     mapping(address => uint256) public lastSellTime;
     mapping(address => uint256) public sellCooldownEnd;
 
-    // Sell tracking
-    mapping(address => TaxLib.SellWindow) public sellWindows;
-    mapping(address => uint256) public totalSellVolume;
+    // NEW: Individual sell tracking (replaces old 3-day rule)
+    mapping(address => TaxLib.IndividualSellWindow) public individualSellWindows;
 
-    // Buy tracking
+    // NEW: Distributor detection and tracking
+    mapping(address => TaxLib.DistributorData) public distributorData;
+    
+    // NEW: Wallet lineage tracking
+    mapping(address => TaxLib.LineageData) public walletLineage;
+    
+    // NEW: Cluster-wide sell tracking (keyed by root distributor)
+    mapping(address => TaxLib.ClusterSellData) public clusterSellData;
+
+    // Legacy systems (simplified)
+    mapping(address => uint256) public walletCreationTime;
+
+    // Buy tracking (unchanged)
     mapping(address => uint256) public totalBuyVolume;
     mapping(address => uint256) public buyCount;
 
-    // Sybil defense
-    mapping(address => address) public walletClusters;
-    mapping(address => uint256) public walletCreationTime;
-
-    // Financial tracking
+    // Financial tracking (unchanged)
     uint256 public totalTaxAccumulated;
     uint256 public totalBuyTaxAccumulated;
     uint256 public reservedLiquidityTokens;
     uint256 public totalBurned;
 
-    // Volume tracking
+    // Volume tracking (unchanged)
     uint256 public dailyTradingVolume;
     uint256 public lastVolumeResetTime;
 
     // =============================================================================
-    // EVENTS - ENHANCED FOR PRODUCTION MONITORING
+    // EVENTS - ENHANCED FOR NEW SYSTEMS
     // =============================================================================
 
-    event TaxCollected(address indexed from, address indexed to, uint256 amount, string indexed taxType, uint256 timestamp);
     event SellProcessed(address indexed seller, uint256 amount, uint256 taxRate, uint256 netAmount, TaxLib.TaxCategory reason, uint256 timestamp);
     event BuyProcessed(address indexed buyer, uint256 amount, uint256 taxRate, uint256 netAmount, uint256 timestamp);
     event CooldownApplied(address indexed wallet, uint256 cooldownEnd, string reason, uint256 timestamp);
-    event WalletClusterDetected(address indexed wallet, address indexed clusterParent, uint256 timestamp);
+    
+    // NEW: Enhanced events for new systems
+    event DistributorDetected(address indexed distributor, uint256 recipients, uint256 totalTransferred, uint256 timestamp);
+    event LineageTracked(address indexed wallet, address indexed parent, address indexed rootDistributor, uint256 timestamp);
+    event ClusterSellTracked(address indexed rootDistributor, address indexed seller, uint256 amount, uint256 clusterTotal, uint256 timestamp);
+    event IndividualSellTracked(address indexed seller, uint256 amount, uint256 windowTotal, uint256 cumulativeImpact, uint256 timestamp);
     event TradeTypeDetected(address indexed from, address indexed to, bool isBuy, bool isSell, string reason, uint256 timestamp);
 
     // =============================================================================
-    // CUSTOM ERRORS - FIXED: Add for better error handling
+    // CUSTOM ERRORS
     // =============================================================================
     
     error OnlyTokenContract();
@@ -126,52 +139,41 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     // =============================================================================
-    // ENHANCED TRADE DETECTION - FIXED: M2 - Trade detection bug fix
+    // ENHANCED TRADE DETECTION (UNCHANGED)
     // =============================================================================
 
-    /**
-     * @dev Comprehensive trade detection for mainnet PancakeSwap
-     * FIXED: M2 - Properly handle return values from multi-hop detection
-     */
     function isTradeTransaction(address from, address to) external view returns (bool isBuy, bool isSell) {
-        // Cache frequently accessed values
         address liquidityPool = token.liquidityPool();
         IUniswapV2Router02 router = token.pancakeRouter();
         
-        // Early return if no LP set
         if (liquidityPool == address(0)) {
             return (false, false);
         }
         
-        // Method 1: Direct LP trades (most common, check first)
+        // Direct LP trades
         if (from == liquidityPool) {
-            return (true, false); // Buy: LP → User
+            return (true, false); // Buy
         }
         
         if (to == liquidityPool) {
-            return (false, true); // Sell: User → LP
+            return (false, true); // Sell
         }
         
-        // Method 2: Router-mediated trades (PancakeSwap standard)
+        // Router-mediated trades
         if (address(router) != address(0)) {
             address routerAddr = address(router);
-            
-            // Batch exclusion checks to reduce external calls
             bool fromExcluded = token.isExcludedFromFees(from);
             bool toExcluded = token.isExcludedFromFees(to);
             
-            // Buy: Router → User (router buying from LP and sending to user)
             if (from == routerAddr && !toExcluded) {
-                return (true, false);
+                return (true, false); // Buy
             }
             
-            // Sell: User → Router (user selling to router, router will send to LP)
             if (to == routerAddr && !fromExcluded) {
-                return (false, true);
+                return (false, true); // Sell
             }
         }
         
-        // FIXED: Method 3 - Use return values from multi-hop detection
         (bool multiHopBuy, bool multiHopSell) = _detectMultiHopTrades(from, to, liquidityPool, address(router));
         if (multiHopBuy || multiHopSell) {
             return (multiHopBuy, multiHopSell);
@@ -180,7 +182,6 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         return (false, false);
     }
 
-    // FIXED: Internal function to properly detect multi-hop trades
     function _detectMultiHopTrades(
         address from, 
         address to, 
@@ -190,12 +191,10 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         bool fromIsTrader = !token.isExcludedFromFees(from) && from != liquidityPool && from != router;
         bool toIsTrader = !token.isExcludedFromFees(to) && to != liquidityPool && to != router;
         
-        // Sell pattern: Regular wallet → System component
         if (fromIsTrader && (to == liquidityPool || to == router)) {
             return (false, true);
         }
         
-        // Buy pattern: System component → Regular wallet  
         if (toIsTrader && (from == liquidityPool || from == router)) {
             return (true, false);
         }
@@ -204,17 +203,17 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     // =============================================================================
-    // VALIDATION FUNCTIONS - ENHANCED SECURITY
+    // ENHANCED VALIDATION WITH NEW SYSTEMS
     // =============================================================================
 
     function validateTransfer(address from, address to, uint256 amount) external {
         if (msg.sender != address(token)) revert OnlyTokenContract();
         
-        // Cache values to reduce SLOAD operations
         address liquidityPool = token.liquidityPool();
         bool fromExcludedCooldown = token.isExcludedFromCooldown(from);
         bool toExcludedCooldown = token.isExcludedFromCooldown(to);
         bool toExcludedFees = token.isExcludedFromFees(to);
+        bool fromExcludedFees = token.isExcludedFromFees(from);
 
         // Skip validation for excluded addresses
         if (fromExcludedCooldown || toExcludedCooldown) {
@@ -224,13 +223,11 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         // Enhanced trade detection
         (bool isBuy, bool isSell) = this.isTradeTransaction(from, to);
         
-        // Buy validation with enhanced security
+        // Buy validation (unchanged)
         if (isBuy && !toExcludedFees) {
-            // One buy per block protection
             require(block.number > lastBuyBlock[to], "One buy per block");
             lastBuyBlock[to] = block.number;
 
-            // 30-second cooldown with tx.origin protection
             require(
                 block.timestamp >= lastBuyTime[to] + BUY_COOLDOWN &&
                 block.timestamp >= lastBuyTime[tx.origin] + BUY_COOLDOWN,
@@ -247,56 +244,75 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
             revert("Sell cooldown active");
         }
 
-        // Track wallet creation time for sybil detection
+        // Track wallet creation time
         if (walletCreationTime[to] == 0 && to != liquidityPool && !toExcludedFees) {
             walletCreationTime[to] = block.timestamp;
         }
 
-        // Enhanced sybil clustering detection
-        bool isClusterCandidate = (
-            !isBuy && !isSell && // Regular transfers, not trades
-            !token.isExcludedFromFees(from) && !toExcludedFees &&
-            walletCreationTime[to] != 0 &&
-            walletCreationTime[to] > block.timestamp - SEVEN_DAYS &&
-            lastSellTime[from] > block.timestamp - SEVEN_DAYS
-        );
-        
-        if (token.sybilDefenseEnabled() && isClusterCandidate && walletClusters[to] == address(0)) {
-            walletClusters[to] = from;
-            emit WalletClusterDetected(to, from, block.timestamp);
+        // NEW: Enhanced transfer tracking for distributor detection
+        if (!isBuy && !isSell && // Regular transfers (not trades)
+            !fromExcludedFees && !toExcludedFees &&
+            amount > 0) {
+            
+            // Update distributor tracking for sender
+            uint256 liquidityBalance = liquidityData.liquidityPoolBalance;
+            bool becameDistributor = TaxLib.updateDistributorTracking(
+                distributorData[from],
+                to,
+                amount,
+                liquidityBalance
+            );
+            
+            if (becameDistributor) {
+                emit DistributorDetected(
+                    from, 
+                    distributorData[from].recipients.length,
+                    distributorData[from].totalTransferred,
+                    block.timestamp
+                );
+            }
+            
+            // NEW: Update lineage tracking for recipient
+            TaxLib.updateWalletLineage(
+                walletLineage[to],
+                from,
+                distributorData
+            );
+            
+            if (walletLineage[to].isClusterLinked) {
+                emit LineageTracked(
+                    to,
+                    from,
+                    walletLineage[to].rootDistributor,
+                    block.timestamp
+                );
+            }
         }
 
         // Update daily volume for trades
-        if ((isBuy || isSell) && !token.isExcludedFromFees(from) && !toExcludedFees) {
+        if ((isBuy || isSell) && !fromExcludedFees && !toExcludedFees) {
             _updateDailyVolume(amount);
         }
     }
 
     // =============================================================================
-    // BUY PROCESSING - PRODUCTION READY
+    // BUY PROCESSING (UNCHANGED)
     // =============================================================================
 
-    /**
-     * @dev Enhanced buy processing with early buyer penalties
-     */
     function processBuy(address buyer, uint256 amount) external nonReentrant returns (uint256) {
         if (msg.sender != address(token)) revert OnlyTokenContract();
         if (!token.buyTaxEnabled()) revert BuyTaxDisabled();
         
-        // Calculate buy tax rate with early buyer penalty
         uint256 taxRate = BUY_TAX_RATE;
         
-        // Early buyer penalty (first 24 hours after trading enabled)
         uint256 tradingEnabledTime = token.tradingEnabledTime();
         if (tradingEnabledTime > 0 && block.timestamp < tradingEnabledTime + 1 days) {
             taxRate = EARLY_BUY_TAX_RATE;
         }
         
-        // Calculate amounts with overflow protection
         uint256 taxAmount = (amount * taxRate) / BASIS_POINTS;
         uint256 transferAmount = amount - taxAmount;
         
-        // Update state before external interactions
         totalBuyVolume[buyer] += amount;
         buyCount[buyer] += 1;
         totalBuyTaxAccumulated += taxAmount;
@@ -308,136 +324,153 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     // =============================================================================
-    // SELL PROCESSING - ENHANCED SECURITY
+    // ENHANCED SELL PROCESSING WITH NEW SYSTEMS
     // =============================================================================
 
-    /**
-     * @dev Enhanced sell processing with proper reentrancy protection
-     */
     function processSell(address seller, uint256 amount) external nonReentrant returns (uint256) {
         if (msg.sender != address(token)) revert OnlyTokenContract();
         
         uint256 preSellBalance = token.balanceOf(seller);
         if (preSellBalance < amount) revert InsufficientBalance(amount, preSellBalance);
 
-        // Update 3-day sell window (gas optimized)
-        sellWindows[seller].update3DaySellWindow(amount, preSellBalance);
-
-        // Cache tax rates to reduce redundant calculations
-        uint256 standardRate = TOTAL_STANDARD_TAX;
-        uint256 liquidityRate = 0;
-        uint256 threeDayRate = TaxLib.calculate3DayTax(sellWindows[seller], 0);
-        uint256 sybilRate = TaxLib.calculateSybilTax(
-            token.sybilDefenseEnabled(),
+        uint256 liquidityBalance = liquidityData.liquidityPoolBalance;
+        
+        // NEW: Update individual sell window (replaces old 3-day rule)
+        uint256 individualTax = TaxLib.updateIndividualSellWindow(
+            individualSellWindows[seller],
+            amount,
+            liquidityBalance
+        );
+        
+        emit IndividualSellTracked(
             seller,
-            walletClusters,
+            amount,
+            individualSellWindows[seller].totalSold,
+            individualSellWindows[seller].cumulativeLPImpact,
+            block.timestamp
+        );
+
+        // NEW: Check if seller is part of a cluster
+        (address rootDistributor, bool isClusterMember) = TaxLib.traceLineageToRoot(
+            seller,
+            walletLineage,
+            distributorData
+        );
+        
+        uint256 clusterTax = 0;
+        if (isClusterMember && rootDistributor != address(0)) {
+            // Update cluster sell tracking
+            clusterTax = TaxLib.updateClusterSellTracking(
+                clusterSellData[rootDistributor],
+                amount,
+                liquidityBalance
+            );
+            
+            emit ClusterSellTracked(
+                rootDistributor,
+                seller,
+                amount,
+                clusterSellData[rootDistributor].totalClusterSold,
+                block.timestamp
+            );
+        }
+
+        // Calculate comprehensive tax
+        (
+            uint256 finalTaxRate,
+            TaxLib.TaxCategory taxCategory,
+            uint256 liquidityTax,
+            uint256 individualTaxCalc,
+            uint256 clusterTaxCalc,
+            uint256 sybilTax
+        ) = TaxLib.calculateComprehensiveTax(
+            amount,
+            liquidityBalance,
+            individualSellWindows[seller],
+            isClusterMember,
+            clusterSellData[rootDistributor],
+            token.sybilDefenseEnabled(),
+            token.dumpSpikeDetectionEnabled(),
+            seller,
             walletCreationTime
         );
 
-        // Calculate liquidity-based tax if dump spike detection enabled
-        if (token.dumpSpikeDetectionEnabled()) {
-            uint256 effectiveBalance = liquidityData.liquidityPoolBalanceTWAP > 0 
-                ? liquidityData.liquidityPoolBalanceTWAP 
-                : liquidityData.liquidityPoolBalance;
-            liquidityRate = TaxLib.calculateLiquidityTax(amount, effectiveBalance);
+        // Cap tax at maximum
+        if (finalTaxRate > MAX_TAX) {
+            finalTaxRate = MAX_TAX;
         }
-
-        // Determine final tax rate and category
-        uint256 baseRate = standardRate;
-        TaxLib.TaxCategory taxCategory = TaxLib.TaxCategory.STANDARD;
         
-        if (liquidityRate > baseRate) {
-            baseRate = liquidityRate;
-            taxCategory = TaxLib.TaxCategory.LIQUIDITY_IMPACT;
-        }
-        if (threeDayRate > baseRate) {
-            baseRate = threeDayRate;
-            taxCategory = TaxLib.TaxCategory.THREE_DAY_RULE;
-        }
-
-        uint256 taxRate = baseRate + sybilRate;
-        if (sybilRate > 0) {
-            taxCategory = TaxLib.TaxCategory.SYBIL_DEFENSE;
-        }
-        if (taxRate == 0) {
-            taxRate = standardRate;
+        // Apply minimum standard tax if no other tax applies
+        if (finalTaxRate == 0) {
+            finalTaxRate = TOTAL_STANDARD_TAX;
             taxCategory = TaxLib.TaxCategory.STANDARD;
         }
-        if (taxRate > MAX_TAX) {
-            taxRate = MAX_TAX;
-        }
 
-        // Calculate amounts
-        uint256 taxAmount = (amount * taxRate) / BASIS_POINTS;
+        // Calculate final amounts
+        uint256 taxAmount = (amount * finalTaxRate) / BASIS_POINTS;
         uint256 transferAmount = amount - taxAmount;
 
-        // Update state before emitting events
+        // Update state
         lastSellTime[seller] = block.timestamp;
-        totalSellVolume[seller] += amount;
         totalTaxAccumulated += taxAmount;
 
-        emit SellProcessed(seller, amount, taxRate, transferAmount, taxCategory, block.timestamp);
+        emit SellProcessed(seller, amount, finalTaxRate, transferAmount, taxCategory, block.timestamp);
 
         return transferAmount;
     }
 
     /**
-     * @dev Gas optimized tax distribution calculation - FIXED TO MATCH WHITEPAPER
+     * @dev Enhanced tax distribution calculation 
      */
     function calculateTaxDistribution(
         address seller, 
         uint256 amount
     ) external view returns (uint256 burnAmount, uint256 advertisingAmount, uint256 liquidityAmount, uint256 communityAmount, bool isHighImpact) {
-        // Cache frequently accessed values
         bool dumpSpikeEnabled = token.dumpSpikeDetectionEnabled();
         bool sybilEnabled = token.sybilDefenseEnabled();
         
-        // Calculate tax rates using optimized logic
-        uint256 standardRate = TOTAL_STANDARD_TAX;
-        uint256 liquidityRate = 0;
-        uint256 threeDayRate = TaxLib.calculate3DayTax(sellWindows[seller], amount);
-        uint256 sybilRate = TaxLib.calculateSybilTax(
-            sybilEnabled,
+        uint256 liquidityBalance = liquidityData.liquidityPoolBalance;
+        
+        // Check if seller is part of cluster
+        (address rootDistributor, bool isClusterMember) = TaxLib.traceLineageToRoot(
             seller,
-            walletClusters,
+            walletLineage,
+            distributorData
+        );
+
+        // Calculate comprehensive tax
+        (
+            uint256 finalTaxRate,
+            TaxLib.TaxCategory taxCategory,
+            ,,,
+        ) = TaxLib.calculateComprehensiveTax(
+            amount,
+            liquidityBalance,
+            individualSellWindows[seller],
+            isClusterMember,
+            clusterSellData[rootDistributor],
+            sybilEnabled,
+            dumpSpikeEnabled,
+            seller,
             walletCreationTime
         );
 
-        if (dumpSpikeEnabled) {
-            uint256 effectiveBalance = liquidityData.liquidityPoolBalanceTWAP > 0 
-                ? liquidityData.liquidityPoolBalanceTWAP 
-                : liquidityData.liquidityPoolBalance;
-            liquidityRate = TaxLib.calculateLiquidityTax(amount, effectiveBalance);
+        // Determine if high impact
+        isHighImpact = (taxCategory == TaxLib.TaxCategory.LIQUIDITY_IMPACT ||
+                       taxCategory == TaxLib.TaxCategory.INDIVIDUAL_SELL_LIMIT ||
+                       taxCategory == TaxLib.TaxCategory.CLUSTER_PENALTY);
+
+        // Apply minimum tax if needed
+        if (finalTaxRate == 0) {
+            finalTaxRate = TOTAL_STANDARD_TAX;
+        }
+        if (finalTaxRate > MAX_TAX) {
+            finalTaxRate = MAX_TAX;
         }
 
-        // Determine final tax rate and impact level
-        uint256 baseRate = standardRate;
-        isHighImpact = false;
+        uint256 taxAmount = (amount * finalTaxRate) / BASIS_POINTS;
         
-        if (liquidityRate > baseRate) {
-            baseRate = liquidityRate;
-            isHighImpact = true;
-        }
-        if (threeDayRate > baseRate) {
-            baseRate = threeDayRate;
-            isHighImpact = true;
-        }
-
-        uint256 taxRate = baseRate + sybilRate;
-        if (sybilRate > 0) {
-            isHighImpact = true;
-        }
-        if (taxRate == 0) {
-            taxRate = standardRate;
-        }
-        if (taxRate > MAX_TAX) {
-            taxRate = MAX_TAX;
-        }
-
-        // Calculate tax distribution - FIXED TO MATCH WHITEPAPER
-        uint256 taxAmount = (amount * taxRate) / BASIS_POINTS;
-        
-        // FIXED: Use proper percentage distribution
+        // Tax distribution
         burnAmount = (taxAmount * STANDARD_BURN_TAX) / TOTAL_STANDARD_TAX;
         
         if (isHighImpact) {
@@ -446,17 +479,17 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
             advertisingAmount = 0;
             communityAmount = 0;
         } else {
-            // FIXED: Use the actual constants for proper distribution
-            advertisingAmount = (taxAmount * STANDARD_ADVERTISING_TAX) / TOTAL_STANDARD_TAX;  // 21%
-            liquidityAmount = (taxAmount * STANDARD_LIQUIDITY_TAX) / TOTAL_STANDARD_TAX;     // 71%  
-            communityAmount = (taxAmount * STANDARD_COMMUNITY_TAX) / TOTAL_STANDARD_TAX;    // 7%
+            // Standard distribution
+            advertisingAmount = (taxAmount * STANDARD_ADVERTISING_TAX) / TOTAL_STANDARD_TAX;
+            liquidityAmount = (taxAmount * STANDARD_LIQUIDITY_TAX) / TOTAL_STANDARD_TAX;
+            communityAmount = (taxAmount * STANDARD_COMMUNITY_TAX) / TOTAL_STANDARD_TAX;
         }
         
         return (burnAmount, advertisingAmount, liquidityAmount, communityAmount, isHighImpact);
     }
 
     // =============================================================================
-    // LIQUIDITY MANAGEMENT
+    // LIQUIDITY MANAGEMENT (UNCHANGED)
     // =============================================================================
 
     function updateLiquidity() external {
@@ -467,7 +500,6 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         }
     }
 
-    // Gas optimized daily volume tracking
     function _updateDailyVolume(uint256 amount) private {
         unchecked {
             if (block.timestamp >= lastVolumeResetTime + 1 days) {
@@ -480,9 +512,87 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     // =============================================================================
-    // VIEW FUNCTIONS - ENHANCED FOR PRODUCTION
+    // ENHANCED VIEW FUNCTIONS
     // =============================================================================
 
+    function getIndividualSellWindow(address account) external view returns (
+        uint256 totalSold,
+        uint256 windowStart,
+        uint256 cumulativeLPImpact,
+        uint256 sellCount,
+        uint256 timeRemaining
+    ) {
+        TaxLib.IndividualSellWindow memory window = individualSellWindows[account];
+        uint256 timeLeft = 0;
+        if (window.windowStart > 0 && block.timestamp < window.windowStart + 72 hours) {
+            timeLeft = (window.windowStart + 72 hours) - block.timestamp;
+        }
+        return (
+            window.totalSold,
+            window.windowStart,
+            window.cumulativeLPImpact,
+            window.sellCount,
+            timeLeft
+        );
+    }
+
+    function getDistributorData(address account) external view returns (
+        bool isDistributor,
+        uint256 distributorFlagTime,
+        uint256 transferCount,
+        uint256 totalTransferred,
+        uint256 recipientCount
+    ) {
+        TaxLib.DistributorData memory data = distributorData[account];
+        return (
+            data.isDistributor,
+            data.distributorFlagTime,
+            data.transferCount,
+            data.totalTransferred,
+            data.recipients.length
+        );
+    }
+
+    function getWalletLineage(address account) external view returns (
+        address parent,
+        uint256 receivedTime,
+        bool isClusterLinked,
+        address rootDistributor
+    ) {
+        TaxLib.LineageData memory lineage = walletLineage[account];
+        return (
+            lineage.parent,
+            lineage.receivedTime,
+            lineage.isClusterLinked,
+            lineage.rootDistributor
+        );
+    }
+
+    function getClusterSellData(address rootDistributor) external view returns (
+        uint256 totalClusterSold,
+        uint256 clusterWindowStart,
+        uint256 cumulativeClusterLPImpact,
+        uint256 clusterSellCount,
+        bool isActive,
+        uint256 timeRemaining
+    ) {
+        TaxLib.ClusterSellData memory data = clusterSellData[rootDistributor];
+        uint256 timeLeft = 0;
+        if (data.isActive && data.clusterWindowStart > 0 && 
+            block.timestamp < data.clusterWindowStart + 35 days) {
+            timeLeft = (data.clusterWindowStart + 35 days) - block.timestamp;
+        }
+        return (
+            data.totalClusterSold,
+            data.clusterWindowStart,
+            data.cumulativeClusterLPImpact,
+            data.clusterSellCount,
+            data.isActive,
+            timeLeft
+        );
+    }
+
+    // Legacy view functions (adapted)
     function getSellWindow(address account) external view returns (
         uint256 totalSold,
         uint256 windowStart,
@@ -490,18 +600,9 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         uint256 sellCount,
         uint256 timeRemaining
     ) {
-        TaxLib.SellWindow memory window = sellWindows[account];
-        uint256 timeLeft = 0;
-        if (window.windowStart > 0 && block.timestamp < window.windowStart + THREE_DAYS) {
-            timeLeft = (window.windowStart + THREE_DAYS) - block.timestamp;
-        }
-        return (
-            window.totalSold,
-            window.windowStart,
-            window.initialHoldings,
-            window.sellCount,
-            timeLeft
-        );
+        // Adapt to new individual sell window
+        (uint256 sold, uint256 start, , uint256 count, uint256 remaining) = this.getIndividualSellWindow(account);
+        return (sold, start, 0, count, remaining); // initialHoldings no longer tracked
     }
 
     function getCooldownInfo(address account) external view returns (
@@ -520,9 +621,6 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         return (cooldownEnd, timeLeft, sellAllowed, lastBuyLocal, buyAllowed);
     }
 
-    /**
-     * @dev Comprehensive buy statistics
-     */
     function getBuyInfo(address account) external view returns (
         uint256 totalBought,
         uint256 buyCountTotal,
@@ -550,9 +648,6 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         );
     }
 
-    /**
-     * @dev Enhanced trading statistics for monitoring
-     */
     function getTradingStats() external view returns (
         uint256 totalSellTax,
         uint256 totalBuyTax,
@@ -570,7 +665,7 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
     }
 
     // =============================================================================
-    // ADMIN FUNCTIONS - PRODUCTION SECURED
+    // ADMIN FUNCTIONS - ENHANCED FOR NEW SYSTEMS
     // =============================================================================
 
     function clearSellCooldown(address account) external onlyOwner {
@@ -579,26 +674,30 @@ contract MilliesHelper is Ownable, ReentrancyGuard {
         emit CooldownApplied(account, 0, "owner_cleared", block.timestamp);
     }
 
-    function clearWalletCluster(address account) external onlyOwner {
+    function clearDistributorFlag(address account) external onlyOwner {
         require(account != address(0), "Invalid address");
-        walletClusters[account] = address(0);
-        emit WalletClusterDetected(account, address(0), block.timestamp);
+        delete distributorData[account];
+        emit DistributorDetected(account, 0, 0, block.timestamp);
     }
 
-    /**
-     * @dev Reset trading stats with owner protection
-     */
-    function resetTradingStats(address account) external onlyOwner {
+    function clearWalletLineage(address account) external onlyOwner {
         require(account != address(0), "Invalid address");
-        delete totalBuyVolume[account];
-        delete totalSellVolume[account];
-        delete buyCount[account];
-        delete sellWindows[account];
+        delete walletLineage[account];
+        emit LineageTracked(account, address(0), address(0), block.timestamp);
     }
 
-    /**
-     * @dev Batch operations for gas efficiency
-     */
+    function clearClusterData(address rootDistributor) external onlyOwner {
+        require(rootDistributor != address(0), "Invalid address");
+        delete clusterSellData[rootDistributor];
+        emit ClusterSellTracked(rootDistributor, address(0), 0, 0, block.timestamp);
+    }
+
+    function resetIndividualSellWindow(address account) external onlyOwner {
+        require(account != address(0), "Invalid address");
+        delete individualSellWindows[account];
+        emit IndividualSellTracked(account, 0, 0, 0, block.timestamp);
+    }
+
     function batchClearCooldowns(address[] calldata accounts) external onlyOwner {
         unchecked {
             for (uint256 i = 0; i < accounts.length; i++) {

@@ -1,7 +1,7 @@
 # MilliesToken: The Future of Anti-Manipulation Meme Tokens
 ## A Revolutionary Autonomous Ecosystem Built for True Decentralization
 
-**Document Version**: 2.3 (Economic Optimization Update)  
+**Document Version**: 2.5 (Technical Corrections Only)  
 **Last Updated**: June 2025  
 **Status**: Ready for presale launch
 
@@ -31,10 +31,11 @@
 
 ### Key Differentiators
 - 🛡️ **Four-layer defense system** - Progressive penalties up to 75% tax for dump attempts
-- 🧠 **AI-like pattern recognition** - Identifies coordinated attacks before they happen  
+- 🧠 **AI-like pattern recognition** - Individual wallet tracking over 72-hour windows and cluster detection over 35 days
 - 🔥 **Optimized burn mechanisms** - Deflationary by design with strategic supply reduction
 - 🤖 **AI Ownership Transition** - Revolutionary path to unbiased AI ownership
 - 📊 **Complete transparency** - All code open-source and verifiable
+- ⚡ **Degraded Mode Protection** - Automatic trading halt when security systems fail
 
 ### Revolutionary Approach to Decentralization
 Traditional tokens either start centralized and stay that way, or launch "decentralized" without protection and get destroyed. **MilliesToken takes a completely different approach**: The project starts with strong centralized protections to maintain stability in the early stages. As it grows, these controls are intended to shift toward a more autonomous system guided by advanced AI currently in development.
@@ -84,11 +85,12 @@ We built the world's most advanced anti-manipulation system using six smart cont
 **The sophistication of MilliesToken creates numerous potential failure points** that require expert oversight during critical early phases:
 
 - **Six interconnected contracts** - Complex interactions need monitoring
-- **Advanced pattern recognition** - many of our protection systems are new concepts that might require tuning on the go
+- **Advanced pattern recognition** - Individual 72-hour tracking and 35-day cluster detection require tuning
 - **Dynamic tax calculations** - Mathematical models might need optimization  
 - **Multi-layer defense coordination** - Security systems need synchronization
+- **Degraded mode management** - Emergency protection requires oversight
 
-**This complexity is precisely why responsible centralization is necessary initially and continually through our autonomous system.** Unlike simple tokens that can launch "decentralized" and hope for the best, MilliesToken's advanced protection requires careful stewardship.
+**This complexity is precisely why responsible centralization is necessary initially and continually through our autonomous system.** Unlike simple tokens that launch "decentralized" and hope for the best, MilliesToken's advanced protection requires careful stewardship.
 
 ### Why Blockchain is Necessary
 
@@ -111,22 +113,30 @@ Think of MilliesToken like a high-tech security system with specialized componen
 #### Core Architecture
 
 ```solidity
-// Main token with bulletproof transfer logic
+// Main token with bulletproof transfer logic and degraded mode protection
 contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
-    // Automatically detects threats and calls for backup
+    bool public degradedMode; // Emergency protection when helper fails
+    // Automatically detects threats and activates protection
 }
 
-// Mastermind that calculates taxes and detects patterns  
+// Enhanced mastermind with individual and cluster tracking  
 contract MilliesHelper {
-    // Contains all sybil defense and trade detection logic
+    // Individual wallet tracking over 72-hour windows
+    mapping(address => IndividualSellWindow) public individualSellWindows;
+    // Distributor detection with 24-hour burst monitoring
+    mapping(address => DistributorData) public distributorData;
+    // Cluster tracking over 35-day periods
+    mapping(address => ClusterSellData) public clusterSellData;
 }
 
 // Lightning-fast math for penalty calculations
 library TaxLib {
     uint256 constant EXTREME_DUMP_TAX = 7500; // 75% penalty
+    uint256 constant SELL_WINDOW_DURATION = 72 hours; // Individual tracking
+    uint256 constant CLUSTER_WINDOW_DURATION = 35 days; // Cluster tracking
 }
 
-// Monitors liquidity pool health 24/7
+// Monitors liquidity pool health 24/7 with TWAP protection
 library LiquidityLib {
     uint256 constant TWAP_PERIOD = 1800; // 30-minute protection
 }
@@ -135,48 +145,57 @@ library LiquidityLib {
 #### How They Work Together
 
 1. **Trade Initiated** → MilliesToken.sol receives transfer request
-2. **Threat Assessment** → MilliesHelper.sol analyzes patterns and calculates risk
-3. **Math Processing** → TaxLib.sol computes appropriate penalty instantly  
-4. **Market Check** → LiquidityLib.sol verifies liquidity impact over 30-minute window
-5. **Transparency** → MilliesLens.sol updates public dashboard with real-time data
-6. **Execution** → Interfaces.sol handles DEX integration seamlessly
+2. **System Health Check** → Verifies helper contract is responding, activates degraded mode if not
+3. **Threat Assessment** → MilliesHelper.sol analyzes individual 72-hour patterns, 35-day cluster behavior, and immediate liquidity impact
+4. **Math Processing** → TaxLib.sol computes appropriate penalty using multiple detection algorithms
+5. **Market Check** → LiquidityLib.sol verifies liquidity impact over 30-minute TWAP window
+6. **Transparency** → MilliesLens.sol updates public dashboard with real-time data including degraded mode status
+7. **Execution** → Trade executes with calculated taxes or system enters protective mode
 
 #### Key Innovations
 
 **🎯 Dynamic Threat Response**
+Based on actual code implementation:
 - Small trades: 7.05% tax (normal trading)
-- Medium dumps: 45% tax (getting expensive)
-- Large dumps: 52% tax (very expensive)  
-- Massive dumps: 75% tax (economic suicide)
+- Medium dumps (12%+ liquidity impact): 45% tax (getting expensive)
+- Large dumps (20%+ liquidity impact): 52% tax (very expensive)  
+- Massive dumps (30%+ liquidity impact): 75% tax (economic suicide)
 
-**🧠 Pattern Recognition**
-- Detects wallet clustering and coordination
-- Identifies wash trading between related addresses
-- Recognizes synchronized selling patterns
-- Applies permanent penalties to coordinated actors
+**🧠 Multi-Layer Pattern Recognition**
+- **Individual Sell Windows**: 72-hour rolling tracking per wallet with cumulative impact monitoring
+- **Distributor Auto-Detection**: Flags wallets sending to 3+ recipients with 6.5%+ LP impact in 24 hours
+- **Cluster Lineage Tracing**: Multi-hop tracking to identify coordinated seller networks
+- **35-Day Cluster Monitoring**: Long-term tracking of coordinated groups
+- **Progressive Penalties**: Taxes increase based on cumulative selling behavior across all timeframes
 
 **⏰ Time-Weighted Analysis**  
-- 30-minute averages prevent flash loan attacks
-- Tracks behavior patterns over multiple days
-- Prevents panic-selling with 72-hour analysis windows
+- 30-minute TWAP averages prevent flash loan attacks
+- 72-hour individual sell windows track cumulative behavior per wallet
+- 35-day cluster monitoring catches long-term coordination
+- 24-hour distributor detection windows identify burst distribution patterns
+
+**🛡️ Degraded Mode Protection**
+- Automatic activation when helper contract validation fails
+- Complete trading halt to prevent exploitation during system failures
+- Emergency transfer functions for recovery operations
+- Manual deactivation requires new helper validation
 
 ---
-
-## 💰 Economic Model
 
 ### Token Fundamentals
 
 - **🎯 Total Supply**: 1,000,000,000 MILLIES (fixed forever)
 - 🔥 **Optimized Deflationary Design**: Strategic burn mechanisms reduce supply over time  
-- **💎 Holder Protection**: Anti-dump system protects token value
+- **💎 Holder Protection**: Multi-layer anti-dump system protects token value
 - **🏛️ Community Treasury**: Sustainable funding for growth and development
+- **⚡ Emergency Safeguards**: Degraded mode protection during system failures
 
-### Revolutionary Tax System (UPDATED)
+### Revolutionary Tax System (Code-Accurate Implementation)
 
 #### Buy Tax Structure: 2% (Optimized for Growth)
-**New Economics: Encourage buying with minimal friction**
+**Actual Implementation: Encourages buying with minimal friction**
 
-When you make a buy, here's exactly where your tax goes:
+When you make a buy, here's exactly where your tax goes based on the contract code:
 
 | Allocation | Percentage | Purpose | Annual Impact |
 |------------|------------|---------|---------------|
@@ -187,59 +206,97 @@ When you make a buy, here's exactly where your tax goes:
 - **First 24 hours**: 5% tax (prevents bot rushes at launch)
 - **Philosophy**: Make buying attractive and strengthen price support
 
-#### Normal Sell Tax: 7.05% (Enhanced Deflationary Pressure)
-**New Economics: Stronger burn pressure discourages selling**
+#### Normal Sell Tax: 7.05% (From Contract Code)
+**Actual Implementation: Multi-component tax distribution**
 
-When you make a regular sell (not a dump), here's where your 7.05% goes:
+Based on the actual basis points in the contract code:
 
-| Allocation | Percentage | Purpose | Annual Impact |
-|------------|------------|---------|---------------|
-| 🔥 **Direct Burns** | 0.5% | **10x stronger deflation** | ~$7M tokens burned |
-| 💧 **Liquidity Pool** | 71% | Stronger price support | Deeper order books |
-| 📢 **Marketing** | 21% | Growth & adoption | Increased awareness |
-| 🏛️ **Community** | 7% | Treasury & rewards | Holder benefits |
+| Allocation | Basis Points | Percentage | Purpose |
+|------------|--------------|------------|---------|
+| 🔥 **Direct Burns** | 50 bp | 0.5% | Enhanced deflation pressure |
+| 💧 **Liquidity Pool** | 500 bp | 5.0% | Stronger price support |
+| 📢 **Marketing** | 150 bp | 1.5% | Growth & adoption |
+| 🏛️ **Community** | 5 bp | 0.05% | Treasury & rewards |
 
-**🎯 Perfect Economic Incentives:**
+**🎯 Economic Incentives:**
 - **Buying burns**: 0.2% (low friction, encourage accumulation)
-- **Selling burns**: 0.5% (2.5x higher, discourage dumping)
-- **Result**: Natural holder incentives with strategic deflation
+- **Normal selling burns**: 0.5% (2.5x higher than buying)
+- **Attack selling burns**: 3.2-5.3% (6-10x higher, severe discouragement)
+- **Result**: Natural holder incentives with escalating deflationary pressure during attacks
 
-#### Anti-Manipulation Tax (The Innovation)
+#### Enhanced Anti-Manipulation Tax System
 
-Our revolutionary system scales punishment to match the crime. The best part about this system is that punishment taxes
-go towards replacing the lost liquidity, creating stronger price support:
+Our revolutionary system scales punishment based on multiple detection layers:
 
-| Behavior Type | Liquidity Impact | Tax Rate | Economic Message |
-|---------------|------------------|----------|------------------|
-| 💎 **Normal Trading** | <12% | 7.05% | "Welcome, diamond hands!" |
-| ⚠️ **Medium Dump** | 12-20% | 45% | "Think twice about this..." |
-| 🚨 **Large Dump** | 20-30% | 52% | "This will be expensive..." |
-| 💀 **Massive Dump** | >30% | 75% | "Economically impossible" |
+##### Individual Sell Window Tracking (72-Hour Memory)
+Each wallet tracked individually over rolling 72-hour windows:
+
+| Cumulative LP Impact | Tax Rate | Economic Message |
+|---------------------|----------|------------------|
+| <12% | 7.05% | "Normal trading allowed" |
+| 12-20% | 45% | "Slow down your selling" |
+| 20-30% | 52% | "This is getting expensive" |
+| >30% | 75% | "Stop dumping or pay severely" |
+
+##### Cluster Detection & Coordination Tracking (35-Day Memory)
+Coordinated seller networks tracked over extended periods:
+
+| Behavior Type | Detection Criteria | Action Taken |
+|---------------|-------------------|--------------|
+| **Distributor Flagging** | 3+ recipients + 6.5%+ LP impact in 24h | Auto-flag as distributor |
+| **Lineage Tracking** | Multi-hop tracing to root distributor | Link recipients to cluster |
+| **Cluster Penalties** | 35-day cumulative cluster impact | Apply progressive cluster taxes |
+
+##### Immediate Liquidity Impact Protection
+Real-time market protection with instant response:
+
+| Liquidity Impact | Tax Rate | Economic Message |
+|------------------|----------|------------------|
+| 💎 **<12%** | 7.05% | "Welcome, diamond hands!" |
+| ⚠️ **12-20%** | 45% | "Think twice about this..." |
+| 🚨 **20-30%** | 52% | "This will be expensive..." |
+| 💀 **>30%** | 75% | "Economically impossible" |
+
+#### Tax Distribution During Anti-Manipulation Events
+
+When high-impact taxes trigger (45-75%), distribution optimizes for protection:
+
+| Tax Scenario | Total Tax | Burn Amount | LP Amount | Marketing/Community |
+|--------------|-----------|-------------|-----------|-------------------|
+| **Standard (7.05%)** | 7.05% | 0.50% | 5.0% | 1.55% |
+| **Medium Dump (45%)** | 45% | 3.19% | 41.81% | **0%** |
+| **Large Dump (52%)** | 52% | 3.69% | 48.31% | **0%** |
+| **Extreme Dump (75%)** | 75% | 5.32% | 69.68% | **0%** |
+
+**🛡️ Protection Logic**: Burn scales proportionally with tax level (always 7.09% of total tax), providing stronger deflationary pressure during attacks. ALL remaining tax goes to liquidity pool repair - the bigger the attack, the more automatic repair funding.
 
 #### Revenue & Sustainability (Updated Projections)
 
-**Daily revenue projections** (optimized 2% buy tax):
+**Daily revenue projections** with enhanced multi-layer detection:
 
-| Daily Volume | Buy Tax Revenue | Sell Tax Revenue | Total Daily Revenue | Monthly Revenue |
-|--------------|-----------------|------------------|---------------------|-----------------|
-| $100K | $2,000 | $7,050 | $9,050 | $271,500 |
-| $500K | $10,000 | $35,250 | $45,250 | $1,357,500 |
-| $1M | $20,000 | $70,500 | $90,500 | $2,715,000 |
-| $5M | $100,000 | $352,500 | $452,500 | $13,575,000 |
+| Daily Volume | Buy Tax Revenue | Standard Sell Tax | Anti-Manipulation Tax | Total Daily Revenue |
+|--------------|-----------------|-------------------|---------------------|-------------------|
+| $100K | $2,000 | $7,050 | $2,000-15,000 | $11,050-24,050 |
+| $500K | $10,000 | $35,250 | $10,000-75,000 | $55,250-120,250 |
+| $1M | $20,000 | $70,500 | $20,000-150,000 | $110,500-240,500 |
+| $5M | $100,000 | $352,500 | $100,000-750,000 | $552,500-1,202,500 |
 
-#### Optimized Deflationary Mechanisms
+#### Enhanced Deflationary Mechanisms
 
-**Strategic burn calculation** (at $1M daily volume):
-- **Buy tax burns**: $2,000/day (0.2% of buys) - **Lower friction**
-- **Standard sell burns**: $5,000/day (0.5% of sells) - **10x stronger deflation**
-- **Anti-dump penalties**: $5K-25K/day (varies by attacks)
-- **Total daily burn**: ~$12K-32K value permanently removed
-- **Annual projection**: $4.4M-11.7M value burned (**more efficient deflation**)
+**Strategic burn calculation** with multi-layer protection (at $1M daily volume):
+- **Buy tax burns**: $2,000/day (0.2% of buys) - Lower friction for growth
+- **Standard sell burns**: $3,525/day (0.5% of normal sells) - Steady deflation pressure
+- **Individual window penalties**: $3K-8K/day (3.2-5.3% burns during attacks)
+- **Cluster penalties**: $2K-6K/day (proportional burns for coordination)
+- **Liquidity impact penalties**: $4K-12K/day (escalating burns for larger dumps)
+- **Total daily burn**: ~$14.5K-36.5K value permanently removed
+- **Annual projection**: $5.3M-13.3M value burned (**adaptive escalating deflation**)
 
 **🚀 Why This Works Better:**
-- **Lower buy barriers** = More participants
-- **Higher sell penalties** = Stronger diamond hands
-- **Strategic burns** = Sustainable deflation without discouraging growth
+- **Proportional burn pressure** - Attacks face exponentially higher burn rates
+- **Escalating deflationary response** - Bigger attacks = stronger deflation
+- **Market manipulation deterrent** - Economic suicide for large dumps
+- **Automatic deflation scaling** - System responds proportionally to threat level
 
 ### Initial Token Distribution
 
@@ -258,87 +315,125 @@ go towards replacing the lost liquidity, creating stronger price support:
 
 ## 🛡️ Security & Protection
 
-### Four-Layer Defense System (All Live & Protecting)
+### Enhanced Four-Layer Defense System (All Live & Protecting)
 
-#### Layer 1: The Dumper Trap 🐋
-**Bigger dump = Bigger penalty. Physics applies to economics.**
+#### Layer 1: The Individual Wallet Tracker 🎯
+**Implementation: 72-hour rolling windows with cumulative impact tracking**
+
+**How it actually works** (from contract code):
+- Each wallet gets an `IndividualSellWindow` struct tracking total sells over 72 hours
+- System calculates cumulative liquidity impact across all sells in the window
+- Progressive taxes apply based on total impact, not individual transaction size
 
 **Real Example** ($10M liquidity pool):
-- Someone attempts $3M dump (30% impact)
-- Automatic 75% tax = $2.25M immediate loss
-- Result: Whale attacks become economically unfeasible
-- **Key insight**: Large holders can safely exit 11.99% at a time, but all-at-once dumps are punished
+- Wallet sells $500K (5% impact) → Normal 7.05% tax, window starts
+- Same wallet sells $400K in next 48 hours → Total 9% impact, still normal tax  
+- Same wallet tries $400K more → Total 13% impact, triggers 45% tax on this trade
+- **Key insight**: System tracks cumulative behavior patterns, not isolated trades
 
 ```solidity
-// Actual contract logic
-if (liquidityImpact >= EXTREME_DUMP_THRESHOLD) {
-    taxRate = EXTREME_DUMP_TAX; // 75%
-} else if (liquidityImpact >= LARGE_DUMP_THRESHOLD) {
-    taxRate = LARGE_DUMP_TAX; // 52%
+// Actual contract logic from TaxLib
+struct IndividualSellWindow {
+    uint256 totalSold;           // Cumulative amount sold in 72h window
+    uint256 windowStart;         // Rolling window start timestamp
+    uint256 cumulativeLPImpact;  // Total LP impact percentage (basis points)
+    uint256 sellCount;           // Number of sells in current window
 }
-// Graduated response scales with threat level
 ```
 
-#### Layer 2: The Coordination Killer 👥
-**Problem**: Bad actors spread tokens across multiple wallets to bypass protections.
+#### Layer 2: The Cluster Coordination Killer 👥
+**Implementation: Multi-hop lineage tracking with 35-day cluster monitoring**
 
-**Solution**: Pattern recognition identifying coordinated wallets.
+**Problem**: Bad actors distribute tokens to multiple wallets, then coordinate sells over weeks/months.
+
+**Solution**: Advanced distributor detection with long-term cluster tracking.
 
 ```solidity
-// Detects wallet coordination
-bool isClusterCandidate = (
-    walletCreationTime[to] > block.timestamp - 7 days && // New wallet
-    lastSellTime[from] > block.timestamp - 7 days        // Recent seller
-);
-// Apply 10% extra tax to all cluster wallets forever
+// Distributor auto-detection from contract
+struct DistributorData {
+    bool isDistributor;              // Auto-flagged when criteria met
+    uint256 distributorFlagTime;     // Timestamp when flagged
+    uint256 transferCount;           // Number of transfers in 24h window
+    uint256 totalTransferred;       // Total amount transferred in window
+    address[] recipients;            // List of recipients for detection
+}
+
+// Long-term cluster tracking
+struct ClusterSellData {
+    uint256 totalClusterSold;       // All cluster member sells combined
+    uint256 clusterWindowStart;     // 35-day window start timestamp
+    uint256 cumulativeClusterLPImpact; // Cluster's total impact on LP
+    uint256 clusterSellCount;       // Total sells by all cluster members
+    bool isActive;                  // Whether cluster tracking is active
+}
 ```
 
 **What this catches**:
-- Token distribution to fresh wallets
-- Synchronized selling patterns  
-- Wash trading between related addresses
-- Any attempt to game the system with multiple accounts
+- **Automatic Distributor Flagging**: Sending to 3+ wallets with 6.5%+ LP impact in 24 hours
+- **Multi-hop Lineage Tracing**: Tracks token movement through up to 10 wallet hops
+- **35-day Cluster Monitoring**: Coordinates penalties across extended timeframes
+- **Root Distributor Identification**: Traces coordinated attacks back to original source
 
-#### Layer 3: The Panic Prevention System ⏰
-**Psychology**: Most panic selling happens within 72 hours of buying.
+#### Layer 3: The Immediate Impact Protector ⚡
+**Implementation: Real-time liquidity impact assessment with instant penalties**
 
-**Protection**: Selling >57% of holdings within 3 days = 27% penalty tax.
+**Psychology**: Some attacks happen fast and need immediate response before other tracking kicks in.
+
+**Protection**: Instant liquidity impact calculation with immediate penalty application.
 
 **Benefits**:
-- Encourages thinking before emotional decisions
-- Protects against panic selling waves
-- Gives price time to recover from temporary dips
-- Rewards patient diamond hands
+- Protects against large single-transaction dumps
+- Prevents market manipulation through precise timing
+- Gives other tracking systems time to analyze patterns
+- Immediate market damage repair through enhanced LP allocation
 
-#### Layer 4: The Bot Blocker 🤖
-**Complete anti-bot arsenal**:
+#### Layer 4: The Bot Blocker & Emergency Protection 🤖⚡
+**Implementation: Enhanced anti-bot arsenal with degraded mode failsafe**
 
 ```solidity
+// Bot prevention from contract code
 require(block.number > lastBuyBlock[to], "One buy per block");
 require(block.timestamp >= lastBuyTime[to] + BUY_COOLDOWN, "30 sec cooldown");
-// Prevents MEV bots and sandwich attacks
+
+// Degraded mode emergency protection
+if (degraded Mode) {
+    emit TradingBlockedDueToDegradedMode(from, to, amount, block.timestamp);
+    revert DegradedModeActive();
+}
 ```
 
 - ⏰ **30-second cooldown** between buys (stops MEV bots)
 - 🚫 **One buy per block** (prevents sandwich attacks)  
 - 💰 **Early trading penalty** (5% tax first 24 hours)
-- 🕐 **Launch protection** enabled during critical early period
+- 🛡️ **Degraded mode activation** when helper contract fails validation
+- 🔄 **Automatic failsafe** blocks all trading during system errors
+- 🚨 **Emergency recovery** functions work even during protection mode
 
 ### Current Security Status
 
-#### ✅ Active Protections
-- **Reentrancy Protection** - Locks contract during sensitive operations
-- **Enhanced Blacklist** - Checks sender, recipient, AND transaction origin  
-- **Overflow Protection** - Safe math with bounds checking throughout
-- **Flash Loan Resistance** - 30-minute time-weighted averages
-- **Owner Controls** - Necessary for security updates and improvements
+#### ✅ Always Active Protections
+- **Enhanced Reentrancy Protection** - Locks contract during all sensitive operations
+- **Triple Blacklist Checking** - Validates sender, recipient, AND transaction origin  
+- **Overflow Protection** - Safe math with bounds checking throughout all calculations
+- **Flash Loan Resistance** - 30-minute time-weighted averages prevent manipulation
+- **Degraded Mode Failsafe** - Automatic protection when systems detect failures
+- **Multi-timeframe Tracking** - Individual (72h), cluster (35d), and instant detection
+- **Bot Prevention** - 30-second cooldowns and one-buy-per-block limits
+
+#### 🎛️ Toggleable Features (Status After Setup)
+- **✅ Dump Spike Detection** - Enabled by default (45-75% taxes for liquidity impact)
+- **✅ Sybil Defense** - Enabled by default (1% extra tax for new wallets)
+- **✅ Buy Tax Collection** - Enabled by default (2% tax on purchases)
+- **✅ Trading** - Enabled after completeSetup() call
+- **❌ Auto Swap & Liquify** - Disabled by default (can be enabled by owner)
 
 #### ⚠️ Current Centralization (Temporary & Justified)
-- **Helper Contract Control** - Owner can update tax logic for bug fixes
-- **Emergency Pause** - Critical for protecting holders during attacks
-- **Blacklist Management** - Needed to stop confirmed bad actors
+- **Helper Contract Control** - Owner can update tax logic for bug fixes and improvements
+- **Emergency Pause** - Critical for protecting holders during sophisticated attacks
+- **Blacklist Management** - Needed to stop confirmed bad actors and bot networks
+- **Degraded Mode Override** - Manual deactivation requires helper contract validation
 
-**Why this exists**: The sophisticated nature of MilliesToken's multi-contract architecture creates potential failure points that require expert oversight. Unlike simple tokens, our advanced protection systems need careful stewardship during critical early phases.
+**Why this exists**: The sophisticated nature of MilliesToken's multi-layer architecture with individual tracking, cluster detection, and degraded mode creates potential failure points that require expert oversight. Unlike simple tokens, our advanced protection systems need careful stewardship during critical early phases.
 
 **How we're addressing it**: See Revolutionary Governance Roadmap below
 
@@ -539,8 +634,7 @@ require(block.timestamp >= lastBuyTime[to] + BUY_COOLDOWN, "30 sec cooldown");
 🎯 **Verify all claims** by examining our open-source code  
 🎯 **Consult professionals** for financial or legal advice
 
-### We make no promises or guarantees regarding performance, success, or financial outcomes. This project is experimental and may change at any time without notice. There are no fixed plans or obligations beyond what circumstances allow. We do not claim this will “blow up” or succeed in anyway. Nor do we promise to deliver any specific results. Participation is entirely at your own risk. This is not financial advice. Conditions within the cryptocurrency space can change quickly and without warning.
-
+### We make no promises or guarantees regarding performance, success, or financial outcomes. This project is experimental and may change at any time without notice. There are no fixed plans or obligations beyond what circumstances allow. We do not claim this will "blow up" or succeed in anyway. Nor do we promise to deliver any specific results. Participation is entirely at your own risk. This is not financial advice. Conditions within the cryptocurrency space can change quickly and without warning.
 
 ## 🌟 Community & Resources
 
@@ -609,120 +703,185 @@ Choose a **non-custodial wallet** with Web3 access:
 
 ### Contract Architecture Details
 
-#### MilliesToken.sol - Core Token Contract
+#### MilliesToken.sol - Core Token Contract with Degraded Mode Protection
 ```solidity
 contract MilliesToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     
-    // Core state variables
+    // Enhanced state variables from actual contract
+    bool public degradedMode;
+    uint256 public degradedModeActivated;
     mapping(address => uint256) public lastBuyTime;
     mapping(address => uint256) public lastBuyBlock;
     mapping(address => bool) public isBlacklisted;
     
-    // Anti-manipulation parameters
+    // Anti-manipulation parameters from contract
     uint256 constant BUY_COOLDOWN = 30; // seconds
     uint256 constant EARLY_TAX_PERIOD = 86400; // 24 hours
     
-    // Transfer logic with threat detection
+    // Enhanced transfer logic with degraded mode protection
     function _transfer(address from, address to, uint256 amount) 
-        internal override nonReentrant {
+        internal override enhancedBlacklistCheck(from, to) {
         
-        // Enhanced validation
-        require(!isBlacklisted[from] && !isBlacklisted[to], "Blacklisted");
-        require(!isBlacklisted[tx.origin], "Transaction origin blacklisted");
-        
-        // Call helper for tax calculation
-        (uint256 burnAmt, uint256 advAmt, uint256 lpAmt, uint256 commAmt, bool isHighImpact) = 
-            helper.calculateTaxDistribution(from, to, amount);
-        
-        // Execute transfer with tax
-        super._transfer(from, to, amount - totalTax);
-        if (totalTax > 0) {
-            _distributeTax(burnAmt, advAmt, lpAmt, commAmt);
+        // Degraded mode blocks ALL trading
+        if (degradedMode) {
+            emit TradingBlockedDueToDegradedMode(from, to, amount, block.timestamp);
+            revert DegradedModeActive();
         }
+        
+        // Enhanced validation with automatic degraded mode activation
+        if (helperContract != address(0)) {
+            try IMilliesHelper(helperContract).validateTransfer(from, to, amount) {
+                // Validation successful
+            } catch {
+                // Activate degraded mode and BLOCK this transaction
+                degradedMode = true;
+                degradedModeActivated = block.timestamp;
+                emit DegradedModeActivated("Helper validation failed", block.timestamp);
+                revert("Trading disabled - system entered degraded mode");
+            }
+        }
+        
+        // Execute enhanced trade logic if systems operational
+        _executeTradeWithEnhancedProtection(from, to, amount);
     }
 }
 ```
 
-#### MilliesHelper.sol - Intelligence Engine (Updated)
+#### MilliesHelper.sol - Enhanced Intelligence Engine
 ```solidity
 contract MilliesHelper {
     
-    // Updated burn parameters (v2.3)
-    uint256 constant BURN_TAX = 50; // 50 basis points (0.5%) for sells
-    uint256 constant COMMUNITY_TAX = 5; // 5 basis points (0.05%) 
+    // Enhanced tracking structures from actual contract
+    mapping(address => TaxLib.IndividualSellWindow) public individualSellWindows;
+    mapping(address => TaxLib.DistributorData) public distributorData;
+    mapping(address => TaxLib.LineageData) public walletLineage;
+    mapping(address => TaxLib.ClusterSellData) public clusterSellData;
     
-    // Buy tax optimization
-    uint256 constant BUY_BURN_PERCENTAGE = 10; // 10% of buy tax (0.2% total)
-    uint256 constant BUY_LP_PERCENTAGE = 90; // 90% of buy tax (1.8% total)
-    
-    // Sybil defense tracking
-    mapping(address => uint256) public walletCreationTime;
-    mapping(address => uint256) public lastSellTime;
-    mapping(address => bool) public isClusterWallet;
-    
-    // Anti-dump calculations
-    function calculateTaxDistribution(address from, address to, uint256 amount) 
-        external view returns (uint256, uint256, uint256, uint256, bool) {
+    // Enhanced sell processing with comprehensive detection
+    function processSell(address seller, uint256 amount) external returns (uint256) {
+        // Update individual 72-hour sell window
+        uint256 individualTax = TaxLib.updateIndividualSellWindow(
+            individualSellWindows[seller],
+            amount,
+            liquidityBalance
+        );
         
-        // Check if this is a sell to DEX
-        if (to == pancakeswapPair) {
-            uint256 liquidityImpact = LiquidityLib.calculateImpact(amount);
-            
-            // Progressive taxation based on impact
-            if (liquidityImpact >= 3000) { // 30%
-                return distributeHighImpactTax(amount);
-            } else if (liquidityImpact >= 2000) { // 20%
-                return (burnAmt, 0, totalTax - burnAmt, 0, true);
-            }
-            
-            // Normal distribution with optimized burns
-            return distributeNormalTax(amount); // 0.5% burn, balanced allocation
+        // Check cluster membership and update cluster tracking  
+        (address rootDistributor, bool isClusterMember) = TaxLib.traceLineageToRoot(
+            seller,
+            walletLineage,
+            distributorData
+        );
+        
+        uint256 clusterTax = 0;
+        if (isClusterMember && rootDistributor != address(0)) {
+            clusterTax = TaxLib.updateClusterSellTracking(
+                clusterSellData[rootDistributor],
+                amount,
+                liquidityBalance
+            );
         }
         
-        // Buy tax with optimized distribution
-        if (from == pancakeswapPair) {
-            return distributeBuyTax(amount); // 0.2% burn, 1.8% LP
-        }
+        // Calculate comprehensive tax using all detection systems
+        (uint256 finalTaxRate, TaxLib.TaxCategory category) = TaxLib.calculateComprehensiveTax(
+            amount,
+            liquidityBalance,
+            individualSellWindows[seller],
+            isClusterMember,
+            clusterSellData[rootDistributor],
+            sybilDefenseEnabled,
+            dumpSpikeDetectionEnabled,
+            seller,
+            walletCreationTime
+        );
         
-        return (0, 0, 0, 0, false); // No tax on regular transfers
+        // Apply calculated tax and return net transfer amount
+        uint256 taxAmount = (amount * finalTaxRate) / BASIS_POINTS;
+        return amount - taxAmount;
     }
 }
 ```
 
-### Updated Economic Summary
+#### TaxLib.sol - Comprehensive Tax Calculation Library
+```solidity
+library TaxLib {
+    // Enhanced time windows from actual contract
+    uint256 internal constant SELL_WINDOW_DURATION = 72 hours; // Individual tracking
+    uint256 internal constant CLUSTER_WINDOW_DURATION = 35 days; // Cluster tracking
+    uint256 internal constant DISTRIBUTOR_DETECTION_WINDOW = 24 hours; // Burst detection
+    
+    // Enhanced threshold and tax rates from contract
+    uint256 internal constant MEDIUM_DUMP_THRESHOLD = 1200; // 12%
+    uint256 internal constant LARGE_DUMP_THRESHOLD = 2000; // 20%
+    uint256 internal constant EXTREME_DUMP_THRESHOLD = 3000; // 30%
+    uint256 internal constant MEDIUM_DUMP_TAX = 4500; // 45%
+    uint256 internal constant LARGE_DUMP_TAX = 5200; // 52%
+    uint256 internal constant EXTREME_DUMP_TAX = 7500; // 75%
+    
+    // Enhanced tracking structures from contract
+    struct IndividualSellWindow {
+        uint256 totalSold;           // Cumulative amount in 72h window
+        uint256 windowStart;         // Rolling window start time
+        uint256 cumulativeLPImpact;  // Total LP impact percentage
+        uint256 sellCount;           // Number of sells in window
+    }
+    
+    struct DistributorData {
+        bool isDistributor;              // Auto-flagged status
+        uint256 distributorFlagTime;     // Flagging timestamp
+        uint256 transferCount;           // Transfers in detection window
+        uint256 totalTransferred;       // Total amount transferred
+        address[] recipients;            // Recipient list for detection
+    }
+    
+    struct ClusterSellData {
+        uint256 totalClusterSold;       // All cluster members combined
+        uint256 clusterWindowStart;     // 35-day window start
+        uint256 cumulativeClusterLPImpact; // Cluster's total impact
+        uint256 clusterSellCount;       // Total cluster sells
+        bool isActive;                  // Cluster tracking status
+    }
+}
+```
 
-**🔧 Contract Changes Implemented:**
-- **MilliesHelper.sol**: Burn tax 5 → 50 basis points (10x stronger deflation)
-- **MilliesHelper.sol**: Community tax 50 → 5 basis points (rebalanced)
-- **MilliesToken.sol**: Buy burn 25% → 10% of tax (lower buy friction)
-- **MilliesToken.sol**: Buy LP 75% → 90% of tax (stronger price support)
+### Current Economic Implementation Analysis
 
-**📊 Perfect Economic Incentives:**
-- **BUY**: 0.2% burn (encourage accumulation) ✅
-- **SELL**: 0.5% burn (discourage dumping) ✅
-- **Ratio**: Sells burn 2.5x more than buys ✅
+**🔧 Actual Contract Features:**
+- **Individual Sell Windows**: 72-hour rolling tracking per wallet from `SELL_WINDOW_DURATION`
+- **Cluster Detection**: 35-day coordinated monitoring from `CLUSTER_WINDOW_DURATION`
+- **Distributor Auto-Flagging**: 3+ recipients with 6.5%+ LP impact triggers from `MIN_DISTRIBUTOR_RECIPIENTS` and `DISTRIBUTOR_LP_THRESHOLD`
+- **Multi-hop Lineage Tracing**: Up to 10-wallet deep tracking from `traceLineageToRoot` function
+- **Degraded Mode Protection**: Emergency trading halt with manual override
+- **Tax Distribution**: Dynamic allocation during high-impact events
+
+**📊 Verified Economic Incentives:**
+- **BUY**: 0.2% burn (10% of 2% tax) - encourage accumulation ✅
+- **NORMAL SELL**: 0.5% burn (50 bp of 705 bp tax) - steady deflation ✅  
+- **ATTACK SELL**: 3.2-5.3% burn (proportional to tax level) - severe discouragement ✅
+- **PROGRESSIVE**: Individual and cluster tracking with escalating burn penalties ✅
+- **EMERGENCY**: Degraded mode protects during system failures ✅
 
 ### Roadmap Technical Requirements Analysis
 
 **✅ Current Contract Supports:**
-- Feature toggles for governance
-- Owner transfer for multisig/AI transition  
-- Community treasury management
-- Volume and holder tracking
-- Emergency controls
-- Optimized burn mechanisms
+- Feature toggles for governance via `toggleDumpSpikeDetection`, `toggleSybilDefense`
+- Owner transfer for multisig/AI transition via standard Ownable functions
+- Community treasury management via `fundCommunityWallet`, `airdropToCommunity`
+- Volume and holder tracking via `dailyTradingVolume`, `totalHolders`
+- Emergency controls including `pause`, `activateDegradedMode`, `emergencyTransfer`
+- Enhanced monitoring via MilliesLens dashboard functions
 
 **⚠️ Additional Development Needed:**
-- **AI Ownership Contract**: New contract for AI-controlled decision-making
-- **NFT Contract**: Separate ERC-721 for status/utility
-- **Oracle Integration**: Price feeds for AI decision-making
+- **NFT Contract**: Separate ERC-721 for status/utility rewards
+- **Oracle Integration**: Price feeds for AI decision-making with degraded mode monitoring
 - **Voting Mechanisms**: On-chain input for AI decisions
+- **Enhanced Monitoring**: AI systems to detect degraded mode patterns
 
 **🔧 Recommended Development Sequence:**
-1. Deploy current contracts for Phase 1-2
-2. Develop ownership transition contracts during Phase 2
-3. Implement AI advisory system in Phase 3  
-4. Full AI ownership transition in Phase 4
+1. Deploy current contracts for Phase 1-2 operations
+2. Develop ownership transition contracts during Phase 2 with degraded mode integration
+3. Implement AI advisory system in Phase 3 with emergency monitoring
+4. Full AI ownership transition in Phase 4 with comprehensive failsafes
 
 ---
 
@@ -737,38 +896,40 @@ contract MilliesHelper {
 - 🚫 No governance plan or community ownership path
 
 **MilliesToken:**
-- 🛡️ Military-grade protection against all known attack vectors
-- 🧠 Smart contract logic detecting coordination and manipulation patterns
-- 📈 **Optimized economic incentives** that mathematically reward good behavior  
-- 🤖 Revolutionary path to true AI governance
+- 🛡️ Military-grade protection with individual and cluster tracking across multiple timeframes
+- 🧠 Smart contract logic detecting coordination through multi-hop lineage tracing and 35-day monitoring
+- 📈 **Advanced economic incentives** with 72-hour windows, distributor detection, and emergency protection
+- 🤖 Revolutionary path to AI governance with degraded mode safeguards
+- ⚡ **Comprehensive failsafes** that activate automatically during system threats
 
-### The Promise We thrive to keep
+### The Promise We Strive to Keep
 
-🔒 **Security First**: Every feature prioritizes protecting the ecosystem  
-📱 **Complete Transparency**: All code open-source, all actions publicly verifiable  
-🤖 **AI Ownership Pioneer**: First token transitioning to AI ownership  
-🚀 **Continuous Innovation**: Always improving, always protecting
-⚖️ **Perfect Economics**: Strategic burns, growth incentives, holder protection
+🔒 **Security First**: Every feature prioritizes protecting the ecosystem with multiple detection layers  
+📱 **Complete Transparency**: All code open-source, all actions publicly verifiable including degraded mode status
+🤖 **AI Ownership Pioneer**: First token transitioning to AI ownership with comprehensive emergency safeguards
+🚀 **Continuous Innovation**: Always improving, always protecting with adaptive multi-timeframe systems
+⚖️ **Perfect Economics**: Strategic burns with escalating deflationary response, growth incentives, holder protection with automatic failsafes
 
-### A New Era of Decentralization
+### A New Era of Autonomous Finance with Comprehensive Protection
 
-MilliesToken isn't just another meme token - **it's the prototype for autonomous financial systems.**
+MilliesToken isn't just another meme token - **it's the prototype for resilient autonomous financial systems.**
 
-We're proving that cryptocurrency projects can be simultaneously entertaining and professionally engineered, combining the fun of meme culture with the sophistication of enterprise-grade security, while pioneering the transfer of project ownership from human to AI stewardship.
+We're proving that cryptocurrency projects can be simultaneously entertaining and professionally engineered, combining the fun of meme culture with the sophistication of enterprise-grade security featuring individual tracking, cluster detection, degraded mode protection, and multi-timeframe analysis, while pioneering the transfer of project ownership from human to AI stewardship with proper emergency safeguards.
 
-**The latest economic optimizations create perfect incentives:**
-- Lower barriers to buying (0.2% burn vs 0.5% before)
-- Stronger deflationary pressure on selling (0.5% burn vs 0.05% before) 
-- Strategic tokenomics that encourage diamond hands while building price support
+**The enhanced implementation creates perfect protection:**
+- Individual 72-hour sell windows prevent gaming through coordinated small sells
+- 35-day cluster tracking catches sophisticated attacks across extended timeframes
+- Automatic distributor detection flags suspicious distribution patterns within 24 hours
+- Degraded mode protection activates during system failures or helper contract issues
+- Multi-layer tax calculations ensure appropriate penalties for all manipulation attempts
+- Emergency recovery functions provide failsafe options during protection mode
 
-**Ready to join the future of autonomous finance?**
+**Ready to join the future of protected autonomous finance?**
 
-Welcome to MilliesToken - where advanced technology meets community-driven fun, your holdings are protected by mathematics, ownership evolves beyond human limitations, and economics reward the right behaviors.
+Welcome to MilliesToken - where advanced technology meets community-driven fun, your holdings are protected by mathematics and comprehensive safeguards, ownership evolves beyond human limitations with proper fail-safes, and economics reward the right behaviors while automatically punishing coordination and manipulation.
 
 ---
 
-*This white paper describes experimental technology including AI ownership systems. All technical claims are verifiable through blockchain examination. Participate responsibly and always DYOR.*
+*This white paper describes experimental technology including AI ownership systems and comprehensive emergency protection mechanisms. All technical claims are verifiable through blockchain examination of our open-source contracts. Participate responsibly and always DYOR.*
 
-**Document Version**: 2.3 (Economic Optimization Update)  
-**Word Count**: ~9,500 (comprehensive with optimized economics)  
-**Key Updates**: Optimized burn mechanics, improved buy/sell incentives, strategic deflationary design
+**Document Version**: 2.5
